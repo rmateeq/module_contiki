@@ -99,7 +99,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.set_active)
+    @wishful_module.bind_function(upis.radio.activate_radio_program)
     def set_active(self, radio_program_name, radio_program_path):
         param_key_values = {}
         if self.radio_programs.has_key(radio_program_name):
@@ -128,7 +128,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Radio Program does not exist")
 
-    @wishful_module.bind_function(upis.radio.set_inactive)
+    @wishful_module.bind_function(upis.radio.deactivate_radio_program)
     def set_inactive(self, radio_program_name):
         param_key_values = {}
         if self.radio_programs.has_key(radio_program_name):
@@ -157,7 +157,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Radio Program does not exist")
 
-    @wishful_module.bind_function(upis.radio.get_active)
+    @wishful_module.bind_function(upis.radio.get_running_radio_program)
     def get_active(self):
         param_keys = []
         param_keys = ["TAISC_ACTIVERADIOPROGRAM"]
@@ -201,7 +201,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.set_txpower)
+    @wishful_module.bind_function(upis.radio.set_tx_power)
     def set_txpower(self, power_dBm):
         param_key_values = {}
         param_key_values['IEEE802154_phyTXPower'] = power_dBm
@@ -223,7 +223,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.get_txpower)
+    @wishful_module.bind_function(upis.radio.get_tx_power)
     def get_txpower(self):
         param_keys = []
         param_keys = ["IEEE802154_phyTXPower"]
@@ -345,7 +345,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.get_radio_platform)
+    @wishful_module.bind_function(upis.radio.get_radio_platforms)
     def get_radio_platform(self):
         retList = []
         for interface in supported_interfaces:
