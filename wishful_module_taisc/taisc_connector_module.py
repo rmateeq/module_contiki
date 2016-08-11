@@ -88,7 +88,7 @@ class TAISCConnector(wishful_module.AgentModule):
                 func_name=fname, err_msg="Interface does not exist")
 
     @wishful_module.bind_function(upis.radio.subscribe_events)
-    def define_radio_event(self, event_keys, event_callback):
+    def define_radio_event(self, event_keys, event_callback, event_duration):
         node = self.node_factory.get_node(self.interface)
         if node != None:
             return node.define_events('taisc', event_keys, event_callback)
