@@ -24,8 +24,6 @@ def readParamHeader(response_message):
 	tup = fm_param_header.unpack(response_message[0:ctypes.sizeof(param_hdr_t)])
 	return param_hdr_t(tup[0], tup[1], tup[2])
 
-class ContikeNetwork():
-	
 
 class ContikiNode():
 	
