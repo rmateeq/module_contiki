@@ -48,9 +48,9 @@ class ContikiNode():
 		if self.radio_driver == 'taisc':
 			from .libTAISC import TAISCRadio
 			self.radio_engine = TAISCRadio(
-		else if self.radio_driver == 'contikimac':
+		elif self.radio_driver == 'contikimac':
 			self.log.fatal('Not implemented yet')
-		else if self.radio_driver == 'tsch':
+		elif self.radio_driver == 'tsch':
 			self.log.fatal('Not implemented yet')
 		
 		
