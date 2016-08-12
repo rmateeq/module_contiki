@@ -10,7 +10,7 @@ from wishful_module_gitar.lib_gitar import SensorNodeFactory
 
 import logging
 import inspect
-from threading import thread
+import thread
 import time
 
 
