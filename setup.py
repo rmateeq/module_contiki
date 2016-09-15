@@ -7,7 +7,7 @@ def readme():
 setup(
 	name='wishful_module_gitar',
 	version='1.1.0',
-	packages=find_packages(),
+	packages=['serial_wrappers','wishful_module_gitar','wishful_module_taisc','wishful_module_rime'],
 	url='http://www.wishful-project.eu/software',
 	license='',
 	author='Peter Ruckebusch',
@@ -15,5 +15,5 @@ setup(
 	description='WiSHFUL Contiki Module',
 	long_description='Implementation of a Contiki agent using the unified programming interfaces (UPIs) of the Wishful project.',
 	keywords='wireless control',
-	install_requires=['ConfigParser',"enum34"]
+	install_requires=['configparser',"enum34"]
 )

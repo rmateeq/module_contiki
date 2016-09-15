@@ -102,7 +102,7 @@ class TAISCConnector(wishful_module.AgentModule):
                 func_name=fname, err_msg="Interface does not exist")
 
     @wishful_module.bind_function(upis.radio.activate_radio_program)
-    def set_active(self, radio_program_name, radio_program_path):
+    def set_active(self, radio_program_name):
         param_key_values = {}
         if self.radio_programs.has_key(radio_program_name):
             param_key_values["TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs[

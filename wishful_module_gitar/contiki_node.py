@@ -426,7 +426,7 @@ class ContikiSerialDump(SerialInterface):
             #~ time.sleep(2)
 
     def print_byte_array(self,b):
-        print ' '.join('{:02x}'.format(x) for x in b)
+        print(' '.join('{:02x}'.format(x) for x in b))
         #~ print ' '.join(str(x) for x in b)
         #~ for c in b: print(c)
 
