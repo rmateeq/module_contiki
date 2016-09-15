@@ -241,12 +241,23 @@ def singleton(cls):
     return instance
 
 
-@singleton
 class SensorNodeFactory():
 
+    class __SensorNodeFactory:
+        def __init__(self):
+            self.log = logging.getLogger('SensorNodeFactory')
+            self.__nodes = {}
+
+        def __str__(self):
+            return repr(self) + self.val
+    instance = None
+
     def __init__(self):
-        self.log = logging.getLogger('SensorNodeFactory')
-        self.__nodes = {}
+        if not SensorNodeFactory.instance:
+            SensorNodeFactory.instance = SensorNodeFactory.__SensorNodeFactory()
+
+    def __getattr__(self, name):
+        return getattr(self.instance, name)
 
     def create_nodes(self, config_file, supported_interfaces, control_extensions):
         from wishful_module_gitar.lib_contiki import ContikiNode
