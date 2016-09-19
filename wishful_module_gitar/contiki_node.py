@@ -123,12 +123,12 @@ class ContikiNode():
         pass
     
     def getParameterUniqueID(uniqueName):
-        if self.unique_name_to_param.has_key(uniqueName) == True:
+        if uniqueName in self.unique_name_to_param:
             return self.unique_name_to_param[uniqueName].param_uid
         return -1
     
     def getParameterUniqueName(uniqueID):
-        if self.unique_id_to_name.has_key(uniqueID) == True:
+        if uniqueID in self.unique_id_to_name:
             return self.unique_id_to_name[uniqueID]
         return -1
     
@@ -136,7 +136,7 @@ class ContikiNode():
         message = bytearray()
         control_hdr = control_hdr_t(ControlOpCode.PARAM_SET,0,++self.sequence_number)
         for key in param_key_values:
-            if self.unique_name_to_param.has_key(key):
+            if key in self.unique_name_to_param:
                 p = self.unique_name_to_param[key]
                 message.extend(param_hdr_t(p.param_uid,p.param_type,p.param_len))
                 if p.param_type == 11:
@@ -188,7 +188,7 @@ class ContikiNode():
         message = bytearray()
         control_hdr = control_hdr_t(ControlOpCode.PARAM_GET,0,++self.sequence_number)
         for key in param_keys:
-            if self.unique_name_to_param.has_key(key):
+            if key in self.unique_name_to_param:
                 p = self.unique_name_to_param[key]
                 message.extend(param_hdr_t(p.param_uid,p.param_type,p.param_len))
                 control_hdr.num_param+=1
@@ -274,7 +274,7 @@ class ContikiNode():
         #~ return
     #~ 
     def defineEvent(self, event_key, event_callback):
-        if self.unique_name_to_param.has_key(event_key):
+        if event_key in self.unique_name_to_param:
             message = bytearray()
             control_hdr = control_hdr_t(ControlOpCode.EVENT_REGISTER,0,++self.sequence_number)
             e = self.unique_name_to_param[event_key]

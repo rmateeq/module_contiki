@@ -49,7 +49,7 @@ class ContikiNode(SensorNode):
         message = bytearray()
         message_hdr = ControlMsgHeader(CommandOpCode.PARAM_SET, 0, ++self.sequence_number)
         for key in param_key_values:
-            if self.params_name_dct.has_key(connector_module) and self.params_name_dct[connector_module].has_key(key):
+            if connector_module in self.params_name_dct and key in self.params_name_dct[connector_module]:
                 p = self.params_name_dct[connector_module][key]
                 message.extend(p.hdr_to_bin())
                 # message_hdr.args_len+=len(p)
@@ -64,7 +64,7 @@ class ContikiNode(SensorNode):
             message = bytearray(message_hdr.to_bin()) + message
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
-                # self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
+                self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
                 param_key_values = {}
                 line_ptr = 0
                 for i in range(0, message_hdr.num_args):
@@ -86,7 +86,7 @@ class ContikiNode(SensorNode):
         message = bytearray()
         message_hdr = ControlMsgHeader(CommandOpCode.PARAM_GET, 0, ++self.sequence_number)
         for key in param_keys:
-            if self.params_name_dct.has_key(connector_module) and self.params_name_dct[connector_module].has_key(key):
+            if connector_module in self.params_name_dct and key in self.params_name_dct[connector_module]:
                 p = self.params_name_dct[connector_module][key]
                 message.extend(p.hdr_to_bin())
                 # message_hdr.args_len+=len(p)
@@ -98,6 +98,7 @@ class ContikiNode(SensorNode):
             message = bytearray(message_hdr.to_bin()) + message
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
+                self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
                 param_key_values = {}
                 line_ptr = 0
                 for i in range(0, message_hdr.num_args):
@@ -109,6 +110,7 @@ class ContikiNode(SensorNode):
                     param_key_values[p.unique_name] = value
                 return param_key_values
             else:
+                self.log.fatal("NOT BYTE ARRAY")
                 return resp_message
         else:
             self.log.info("ContikiNode %s read_parameters: no valid parameters %s", self.interface, param_keys)
@@ -133,7 +135,7 @@ class ContikiNode(SensorNode):
         message = bytearray()
         message_hdr = ControlMsgHeader(CommandOpCode.PARAM_GET, 0, 0, ++self.sequence_number)
         for key in measurement_keys:
-            if self.measurements_name_dct.has_key(connector_module) and self.measurements_name_dct[connector_module].has_key(key):
+            if connector_module in self.measurements_name_dct and key in self.measurements_name_dct[connector_module]:
                 m = self.measurements_name_dct[connector_module][key]
                 message.extend(m.hdr_to_bin())
                 # message_hdr.args_len+=len(m)
@@ -180,7 +182,7 @@ class ContikiNode(SensorNode):
         message = bytearray()
         message_hdr = ControlMsgHeader(CommandOpCode.EVENT_REGISTER, 0, 0, ++self.sequence_number)
         for key in event_keys:
-            if self.events_name_dct.has_key(connector_module) and self.events_name_dct[connector_module].has_key(key):
+            if connector_module in self.events_name_dct and key in self.events_name_dct[connector_module]:
                 e = self.events_name_dct[connector_module][key]
                 message.extend(e.hdr_to_bin())
                 # message_hdr.args_len+=len(e)
@@ -267,7 +269,7 @@ class ContikiNode(SensorNode):
                 e_hdr = GenericControlHeader.hdr_from_buf(response_message[line_ptr:])
                 line_ptr += len(e_hdr)
                 for connector in self.events_id_dct.keys():
-                    if self.events_id_dct[connector].has_key(e_hdr.unique_id):
+                    if e_hdr.unique_id in self.events_id_dct[connector]:
                         e = self.events_id_dct[e_hdr.unique_id]
                         value = e.data_type.value_from_buf(response_message[line_ptr:])
                         for cb in e.subscriber_callbacks:

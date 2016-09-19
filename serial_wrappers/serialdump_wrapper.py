@@ -56,6 +56,8 @@ class SerialdumpWrapper(SerialWrapper):
 					try:
 						enc_len = SerialWrapper.fm_serial_header.unpack(line[0:2])[1]
 						dec_line = bytearray(base64.b64decode(line[ctypes.sizeof(SerialHeader):enc_len]))
+						self.log.info(line)
+						self.log.info(enc_len)
 						#~ self.__print_byte_array(dec_line)
 						rx_callback(0,dec_line)
 					except (RuntimeError, TypeError, NameError):
