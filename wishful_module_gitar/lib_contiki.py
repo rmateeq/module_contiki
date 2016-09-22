@@ -37,11 +37,17 @@ class ContikiNode(SensorNode):
             if param_def['type_name'] == "STRUCT_T":
                 tlen = param_def['type_len']
                 tformat = param_def['type_format']
+                tsubformat = ""
+            elif param_def['type_name'] == "DYN_STRUCT_T":
+                tlen = param_def['type_len']
+                tformat = param_def['type_format']
+                tsubformat = param_def['type_subformat']
             else:
                 tlen = -1
                 tformat = ""
+                tsubformat = ""
             param = SensorParameter(param_def['unique_name'], int(
-                param_def['unique_id']), param_def['type_name'], int(tlen), tformat)
+                param_def['unique_id']), param_def['type_name'], int(tlen), tformat, tsubformat)
             self.params_id_dct[connector_module][int(param_def['unique_id'])] = param
             self.params_name_dct[connector_module][param_def['unique_name']] = param
 
@@ -123,11 +129,17 @@ class ContikiNode(SensorNode):
             if measurement_def['type_name'] == "STRUCT_T":
                 tlen = measurement_def['type_len']
                 tformat = measurement_def['type_format']
+                tsubformat = ""
+            elif measurement_def['type_name'] == "DYN_STRUCT_T":
+                tlen = measurement_def['type_len']
+                tformat = measurement_def['type_format']
+                tsubformat = measurement_def['type_subformat']
             else:
                 tlen = -1
                 tformat = ""
+                tsubformat = ""
             measurement = SensorMeasurement(measurement_def['unique_name'], int(
-                measurement_def['unique_id']), measurement_def['type_name'], int(tlen), tformat)
+                measurement_def['unique_id']), measurement_def['type_name'], int(tlen), tformat, tsubformat)
             self.measurements_id_dct[connector_module][int(measurement_def['unique_id'])] = measurement
             self.measurements_name_dct[connector_module][measurement_def['unique_name']] = measurement
 
@@ -170,11 +182,17 @@ class ContikiNode(SensorNode):
             if event_def['type_name'] == "STRUCT_T":
                 tlen = event_def['type_len']
                 tformat = event_def['type_format']
+                tsubformat = ""
+            elif event_def['type_name'] == "DYN_STRUCT_T":
+                tlen = event_def['type_len']
+                tformat = event_def['type_format']
+                tsubformat = event_def['type_subformat']
             else:
                 tlen = -1
                 tformat = ""
+                tsubformat = ""
             event = SensorEvent(event_def['unique_name'], int(event_def['unique_id']),
-                                event_def['type_name'], int(tlen), tformat)
+                                event_def['type_name'], int(tlen), tformat, tsubformat)
             self.events_id_dct[connector_module][int(event_def['unique_id'])] = event
             self.events_name_dct[connector_module][event_def['unique_name']] = event
 

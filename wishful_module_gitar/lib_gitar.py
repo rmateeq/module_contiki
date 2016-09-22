@@ -19,6 +19,7 @@ BOOL_T = struct.Struct("?")
 CHAR_T = struct.Struct("c")
 STRING_T = struct.Struct("<s")
 STRUCT_T = struct.Struct("<p")
+DYN_STRUCT_T = struct.Struct("<p")
 
 
 class CommandOpCode(IntEnum):
@@ -96,15 +97,16 @@ class SensorDataType():
     typeSize = {"UINT8_T": 1, "INT8_T": 1, "UINT16_T": 2, "INT16_T": 2, "UINT32_T": 4,
                 "INT32_T": 4, "UINT64_T": 8, "INT64_T": 8, "BOOL_T": 1, "CHAR_T": 1}
     typeID = {"UINT8_T": 0, "INT8_T": 1, "UINT16_T": 2, "INT16_T": 3, "UINT32_T": 4, "INT32_T": 5,
-              "UINT64_T": 6, "INT64_T": 7, "BOOL_T": 8, "CHAR_T": 9, "STRING_T": 10, "STRUCT_T": 11}
-    typeName = {0: "UINT8_T", 1: "INT8_T", 2: "UINT16_T", 3: "INT16_T", 4: "UINT32_T", 5: "INT32_T",
-                6: "UINT64_T", 7: "INT64_T", 8: "BOOL_T", 9: "CHAR_T", 10: "STRING_T", 11: "STRUCT_T"}
+              "UINT64_T": 6, "INT64_T": 7, "BOOL_T": 8, "CHAR_T": 9, "STRING_T": 10, "STRUCT_T": 11, "DYN_STRUCT_T": 12}
+    typeName = {0: "UINT8_T", 1: "INT8_T", 2: "UINT16_T", 3: "INT16_T", 4: "UINT32_T", 5: "INT32_T", 6: "UINT64_T",
+                7: "INT64_T", 8: "BOOL_T", 9: "CHAR_T", 10: "STRING_T", 11: "STRUCT_T", 12: "DYN_STRUCT_T"}
     typeAsDType = {"UINT8_T": 'u1', "INT8_T": 'i1', "UINT16_T": 'u2', "INT16_T": 'i2', "UINT32_T": 'u4',
-                   "INT32_T": 'i4', "UINT64_T": 'u8', "INT64_T": 'i8', "BOOL_T": 'b', "CHAR_T": 'U', "STRING_T": 'S', "STRUCT_T": 'O'}
-    typeAsStruct = [UINT8_T, INT8_T, UINT16_T, INT16_T, UINT32_T,
-                    INT32_T, UINT64_T, INT64_T, BOOL_T, CHAR_T, STRING_T, STRUCT_T]
+                   "INT32_T": 'i4', "UINT64_T": 'u8', "INT64_T": 'i8', "BOOL_T": 'b', "CHAR_T": 'U', "STRING_T": 'S',
+                   "STRUCT_T": 'O', "DYN_STRUCT_T": 'O'}
+    typeAsStruct = [UINT8_T, INT8_T, UINT16_T, INT16_T, UINT32_T, INT32_T,
+                    UINT64_T, INT64_T, BOOL_T, CHAR_T, STRING_T, STRUCT_T, DYN_STRUCT_T]
 
-    def __init__(self, type_name, type_len=-1, np_format=""):
+    def __init__(self, type_name, type_len=-1, np_format="",np_sub_format=""):
         self.type_name = type_name
         self.type_id = SensorDataType.typeID[type_name]
         if type_len != -1:
@@ -115,6 +117,8 @@ class SensorDataType():
             self.np_format = np_format
         else:
             self.np_format = SensorDataType.typeAsDType[self.type_name]
+        if self.type_name == "DYN_STRUCT_T":
+            self.np_sub_format = np_sub_format
         self.struct_format = SensorDataType.typeAsStruct[self.type_id]
 
     def value_to_bin(self, value):
@@ -123,16 +127,35 @@ class SensorDataType():
             s = struct.Struct('<' + self.struct_format.format)
             #~ print s.pack(value)
             bin_val.extend(s.pack(value))
+        elif self.type_id == 11:
+            import numpy as np
+            dt = np.dtype(self.np_format).newbyteorder('>')
+            s = bytearray(np.array(tuple(value,), dt))
+            bin_val.extend(s)
         else:
             import numpy as np
             dt = np.dtype(self.np_format).newbyteorder('>')
             s = bytearray(np.array(tuple(value,), dt))
             bin_val.extend(s)
+            offset = self.type_len
+            while offset < len(value):
+                dt = np.dtype(self.np_sub_format).newbyteorder('>')
+                s = bytearray(np.array(tuple(value[offset:offset + dt.itemsize],), dt))
+                bin_val.extend(s)
+                offset = offset + dt.itemsize
         return bin_val
 
     def value_from_buf(self, buf):
         import numpy as np
         dt = np.dtype(self.np_format)
+        if self.type_name == "DYN_STRUCT_T":
+            ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[0:dt.itemsize]).byteswap(), dt)[0]
+            offset = dt.itemsize
+            while offset < len(buf):
+                dt=np.dtype(self.np_sub_format)
+                ret_tpl = ret_tpl + np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[offset:dt.itemsize]).byteswap(), dt)[0]
+                offset = offset + dt.itemsize
+            return ret_tpl
         return np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf).byteswap(), dt)[0]
 
 uint32_data_type = SensorDataType("UINT32_T")
@@ -244,6 +267,7 @@ def singleton(cls):
 class SensorNodeFactory():
 
     class __SensorNodeFactory:
+
         def __init__(self):
             self.log = logging.getLogger('SensorNodeFactory')
             self.__nodes = {}
@@ -289,7 +313,7 @@ class SensorNodeFactory():
                 event_defs = []
                 for row in reader:
                     r_def = {'unique_name': row["unique_name"], 'unique_id': row["unique_id"], 'type_name': row[
-                        "type"], 'type_len': row["length"], 'type_format': row["struct_format"]}
+                        "type"], 'type_len': row["length"], 'type_format': row["struct_format"], 'type_subformat': row["struct_subformat"]}
                     if row['category'] == "PARAMETER":
                         param_defs.append(r_def)
                     elif row['category'] == "MEASUREMENT":
