@@ -104,7 +104,7 @@ class TAISCConnector(wishful_module.AgentModule):
     @wishful_module.bind_function(upis.radio.activate_radio_program)
     def set_active(self, radio_program_name):
         param_key_values = {}
-        if self.radio_programs.has_key(radio_program_name):
+        if radio_program_name in self.radio_programs:
             param_key_values["TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs[
                 radio_program_name]
             node = self.node_factory.get_node(self.interface)
@@ -133,7 +133,7 @@ class TAISCConnector(wishful_module.AgentModule):
     @wishful_module.bind_function(upis.radio.deactivate_radio_program)
     def set_inactive(self, radio_program_name):
         param_key_values = {}
-        if self.radio_programs.has_key(radio_program_name):
+        if radio_program_name in self.radio_programs:
             param_key_values[
                 "TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs['NO_MAC']
             node = self.node_factory.get_node(self.interface)
@@ -254,6 +254,7 @@ class TAISCConnector(wishful_module.AgentModule):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
             ret = node.write_parameters('taisc', param_key_values)
+            self.log.info(ret)
             if type(ret) == dict:
                 return ret["IEEE802154_phyCurrentChannel"]
             else:
@@ -276,6 +277,7 @@ class TAISCConnector(wishful_module.AgentModule):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
             ret = node.read_parameters('taisc', param_keys)
+            self.log.info(ret)
             if type(ret) == dict:
                 return ret["IEEE802154_phyCurrentChannel"]
             else:
