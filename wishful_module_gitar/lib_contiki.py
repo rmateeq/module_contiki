@@ -258,10 +258,7 @@ class ContikiNode(SensorNode):
 
     def __serial_rx_handler(self, error, response_message):
         if error == 0:
-            if self.__awaiting_command_response:
-                self.__awaiting_command_response = False
-                self.__response_message = response_message
-            elif response_message[0] == ControlOpCode.EVENT_PUSH:
+            if response_message[0] == ControlOpCode.EVENT_PUSH:
                 event_hdr = ControlMsgHeader.from_buf(response_message)
                 line_ptr = 6
                 e_hdr = GenericControlHeader.hdr_from_buf(response_message[line_ptr:])
@@ -273,7 +270,10 @@ class ContikiNode(SensorNode):
                         for cb in e.subscriber_callbacks:
                             cb(e.unique_name, value)
                         return
-                self.log.info("ContikiNode %s received unknown event %s, dropping", self.interface, e_hdr)
+                self.log.info("ContikiNode %s received unknown event %s %s, dropping", self.interface, event_hdr, e_hdr)
+            elif self.__awaiting_command_response:
+                self.__awaiting_command_response = False
+                self.__response_message = response_message
             else:
                 self.serial_wrapper.print_byte_array(response_message)
                 self.log.info("ContikiNode %s received response out-of-order, dropping", self.interface)
