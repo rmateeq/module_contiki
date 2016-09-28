@@ -183,10 +183,10 @@ class GenericControlHeader():
 
     fm_header = struct.Struct('<H B B')
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
         self.unique_name = uname
         self.unique_id = uid
-        self.data_type = SensorDataType(type_name, type_len, type_np_format)
+        self.data_type = SensorDataType(type_name, type_len, type_np_format, type_np_subformat)
 
     def __len__(self):
         return struct.calcsize(GenericControlHeader.fm_header.format)
@@ -207,25 +207,26 @@ class GenericControlHeader():
 
 class SensorEvent(GenericControlHeader):
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
         GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
-                                      type_np_format)
+                                      type_np_format, type_np_subformat)
+        self.event_duration = 0
         self.subscriber_callbacks = []
 
 
 class SensorParameter(GenericControlHeader):
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
         GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
-                                      type_np_format)
+                                      type_np_format, type_np_subformat)
         self.change_list = []
 
 
 class SensorMeasurement(GenericControlHeader):
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
         GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
-                                      type_np_format)
+                                      type_np_format, type_np_subformat)
         self.is_periodic = False
         self.read_interval = 0
         self.report_interval = 0

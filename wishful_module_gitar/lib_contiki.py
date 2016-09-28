@@ -202,7 +202,9 @@ class ContikiNode(SensorNode):
         for key in event_keys:
             if connector_module in self.events_name_dct and key in self.events_name_dct[connector_module]:
                 e = self.events_name_dct[connector_module][key]
+                e.event_duration = event_duration
                 message.extend(e.hdr_to_bin())
+                message.extend(uint16_data_type.value_to_bin(event_duration))
                 # message_hdr.args_len+=len(e)
                 message_hdr.num_args += 1
             else:
