@@ -54,7 +54,7 @@ class TAISCConnector(wishful_module.AgentModule):
     def get_radio_measurements(self, measurement_keys):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.get_measurements('taisc', measurement_keys)
+            return node.read_measurements('taisc', measurement_keys)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -70,7 +70,7 @@ class TAISCConnector(wishful_module.AgentModule):
                 measurement_report[key] = []
             for i in xrange(0, num_collects_report):
                 time.sleep(collect_period)
-                ret = node.get_measurements('taisc', measurement_keys)
+                ret = node.read_measurements('taisc', measurement_keys)
                 for key in ret.keys():
                     measurement_report[key].append(ret[key])
             report_callback(node.interface, measurement_report)
@@ -93,7 +93,7 @@ class TAISCConnector(wishful_module.AgentModule):
     def define_radio_event(self, event_keys, event_callback, event_duration):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.define_events('taisc', event_keys, event_callback)
+            return node.add_events_subscriber('taisc', event_keys, event_callback, event_duration)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -135,7 +135,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_key_values = {}
         if radio_program_name in self.radio_programs:
             param_key_values[
-                "TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs['NO_MAC']
+                "TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs['CSMA']
             node = self.node_factory.get_node(self.interface)
             if node is not None:
                 ret = node.write_parameters('taisc', param_key_values)
@@ -351,7 +351,8 @@ class TAISCConnector(wishful_module.AgentModule):
 
     @wishful_module.bind_function(upis.radio.get_radio_platforms)
     def get_radio_platform(self):
-        retList = []
-        for interface in self.supported_interfaces:
-            retList.append(RadioPlatform(interface, "TAISC"))
-        return retList
+        # retList = []
+        # for interface in self.supported_interfaces:
+        #    retList.append(RadioPlatform(interface, "TAISC"))
+        # return retList
+        return self.supported_interfaces

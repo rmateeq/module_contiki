@@ -196,7 +196,7 @@ class ContikiNode(SensorNode):
             self.events_id_dct[connector_module][int(event_def['unique_id'])] = event
             self.events_name_dct[connector_module][event_def['unique_name']] = event
 
-    def add_events_subscriber(self, connector_module, event_keys, event_callback):
+    def add_events_subscriber(self, connector_module, event_keys, event_callback, event_duration):
         message = bytearray()
         message_hdr = ControlMsgHeader(CommandOpCode.EVENT_REGISTER, 0, 0, ++self.sequence_number)
         for key in event_keys:

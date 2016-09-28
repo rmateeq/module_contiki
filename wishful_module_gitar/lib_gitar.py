@@ -39,7 +39,9 @@ class ControlMsgHeader():
         self.seq_nr = seq_nr
 
     def __eq__(self, other):
-        return (self.opcode == other.opcode) and (self.num_args == other.num_args) and (self.seq_nr == other.seq_nr)
+        return (self.opcode == other.opcode) and \
+            (self.num_args == other.num_args) and \
+            (self.seq_nr == other.seq_nr)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -71,7 +73,10 @@ class CommandHeader():
         self.seq_nr = seq_nr
 
     def __eq__(self, other):
-        return (self.opcode == other.opcode) and (self.num_args == other.num_args) and (self.args_len == other.args_len) and (self.seq_nr == other.seq_nr)
+        return (self.opcode == other.opcode) and \
+            (self.num_args == other.num_args) and \
+            (self.args_len == other.args_len) and \
+            (self.seq_nr == other.seq_nr)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -94,19 +99,27 @@ class CommandHeader():
 
 
 class SensorDataType():
-    typeSize = {"UINT8_T": 1, "INT8_T": 1, "UINT16_T": 2, "INT16_T": 2, "UINT32_T": 4,
-                "INT32_T": 4, "UINT64_T": 8, "INT64_T": 8, "BOOL_T": 1, "CHAR_T": 1}
-    typeID = {"UINT8_T": 0, "INT8_T": 1, "UINT16_T": 2, "INT16_T": 3, "UINT32_T": 4, "INT32_T": 5,
-              "UINT64_T": 6, "INT64_T": 7, "BOOL_T": 8, "CHAR_T": 9, "STRING_T": 10, "STRUCT_T": 11, "DYN_STRUCT_T": 12}
-    typeName = {0: "UINT8_T", 1: "INT8_T", 2: "UINT16_T", 3: "INT16_T", 4: "UINT32_T", 5: "INT32_T", 6: "UINT64_T",
-                7: "INT64_T", 8: "BOOL_T", 9: "CHAR_T", 10: "STRING_T", 11: "STRUCT_T", 12: "DYN_STRUCT_T"}
-    typeAsDType = {"UINT8_T": 'u1', "INT8_T": 'i1', "UINT16_T": 'u2', "INT16_T": 'i2', "UINT32_T": 'u4',
-                   "INT32_T": 'i4', "UINT64_T": 'u8', "INT64_T": 'i8', "BOOL_T": 'b', "CHAR_T": 'U', "STRING_T": 'S',
-                   "STRUCT_T": 'O', "DYN_STRUCT_T": 'O'}
+    typeSize = {"UINT8_T": 1, "INT8_T": 1, "UINT16_T": 2, "INT16_T": 2,
+                "UINT32_T": 4, "INT32_T": 4, "UINT64_T": 8, "INT64_T": 8,
+                "BOOL_T": 1, "CHAR_T": 1}
+    typeID = {"UINT8_T": 0, "INT8_T": 1, "UINT16_T": 2, "INT16_T": 3,
+              "UINT32_T": 4, "INT32_T": 5, "UINT64_T": 6, "INT64_T": 7,
+              "BOOL_T": 8, "CHAR_T": 9, "STRING_T": 10, "STRUCT_T": 11,
+              "DYN_STRUCT_T": 12}
+    typeName = {0: "UINT8_T", 1: "INT8_T", 2: "UINT16_T", 3: "INT16_T",
+                4: "UINT32_T", 5: "INT32_T", 6: "UINT64_T", 7: "INT64_T",
+                8: "BOOL_T", 9: "CHAR_T", 10: "STRING_T", 11: "STRUCT_T",
+                12: "DYN_STRUCT_T"}
+    typeAsDType = {"UINT8_T": 'u1', "INT8_T": 'i1', "UINT16_T": 'u2',
+                   "INT16_T": 'i2', "UINT32_T": 'u4', "INT32_T": 'i4',
+                   "UINT64_T": 'u8', "INT64_T": 'i8', "BOOL_T": 'b',
+                   "CHAR_T": 'U', "STRING_T": 'S', "STRUCT_T": 'O',
+                   "DYN_STRUCT_T": 'O'}
     typeAsStruct = [UINT8_T, INT8_T, UINT16_T, INT16_T, UINT32_T, INT32_T,
-                    UINT64_T, INT64_T, BOOL_T, CHAR_T, STRING_T, STRUCT_T, DYN_STRUCT_T]
+                    UINT64_T, INT64_T, BOOL_T, CHAR_T, STRING_T, STRUCT_T,
+                    DYN_STRUCT_T]
 
-    def __init__(self, type_name, type_len=-1, np_format="",np_sub_format=""):
+    def __init__(self, type_name, type_len=-1, np_format="", np_sub_format=""):
         self.type_name = type_name
         self.type_id = SensorDataType.typeID[type_name]
         if type_len != -1:
@@ -125,7 +138,7 @@ class SensorDataType():
         bin_val = bytearray()
         if self.type_id < 11:
             s = struct.Struct('<' + self.struct_format.format)
-            #~ print s.pack(value)
+            # print s.pack(value)
             bin_val.extend(s.pack(value))
         elif self.type_id == 11:
             import numpy as np
@@ -152,11 +165,13 @@ class SensorDataType():
             ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[0:dt.itemsize]).byteswap(), dt)[0]
             offset = dt.itemsize
             while offset < len(buf):
-                dt=np.dtype(self.np_sub_format)
+                dt = np.dtype(self.np_sub_format)
                 ret_tpl = ret_tpl + np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[offset:dt.itemsize]).byteswap(), dt)[0]
                 offset = offset + dt.itemsize
             return ret_tpl
-        return np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf).byteswap(), dt)[0]
+        return np.frombuffer(np.ndarray(shape=(), dtype=dt,
+                                        buffer=buf).byteswap(), dt)[0]
+
 
 uint32_data_type = SensorDataType("UINT32_T")
 uint16_data_type = SensorDataType("UINT16_T")
@@ -186,27 +201,31 @@ class GenericControlHeader():
     @staticmethod
     def hdr_from_buf(buf):
         tup = GenericControlHeader.fm_header.unpack(buf[0:4])
-        return GenericControlHeader("STUB", tup[0], SensorDataType.typeName[tup[1]], tup[2])
+        return GenericControlHeader("STUB", tup[0],
+                                    SensorDataType.typeName[tup[1]], tup[2])
 
 
 class SensorEvent(GenericControlHeader):
 
     def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
-        GenericControlHeader.__init__(self, uname, uid, type_name, type_len, type_np_format)
+        GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
+                                      type_np_format)
         self.subscriber_callbacks = []
 
 
 class SensorParameter(GenericControlHeader):
 
     def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
-        GenericControlHeader.__init__(self, uname, uid, type_name, type_len, type_np_format)
+        GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
+                                      type_np_format)
         self.change_list = []
 
 
 class SensorMeasurement(GenericControlHeader):
 
     def __init__(self, uname, uid, type_name, type_len=-1, type_np_format=""):
-        GenericControlHeader.__init__(self, uname, uid, type_name, type_len, type_np_format)
+        GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
+                                      type_np_format)
         self.is_periodic = False
         self.read_interval = 0
         self.report_interval = 0
@@ -242,7 +261,8 @@ class SensorNode():
         pass
 
     @abc.abstractmethod
-    def add_events_subscriber(self, connector_module, event_names, event_callback):
+    def add_events_subscriber(self, connector_module, event_names,
+                              event_callback):
         pass
 
     @abc.abstractmethod
@@ -283,7 +303,8 @@ class SensorNodeFactory():
     def __getattr__(self, name):
         return getattr(self.instance, name)
 
-    def create_nodes(self, config_file, supported_interfaces, control_extensions):
+    def create_nodes(self, config_file, supported_interfaces,
+                     control_extensions):
         from wishful_module_gitar.lib_contiki import ContikiNode
         config = ConfigParser.ConfigParser()
         config.optionxform = str
