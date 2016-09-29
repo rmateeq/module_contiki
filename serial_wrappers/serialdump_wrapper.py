@@ -5,7 +5,9 @@ import threading
 import logging
 import base64
 import ctypes
-
+import binascii
+import traceback
+import sys
 
 class SerialdumpWrapper(SerialWrapper):
 
@@ -37,6 +39,7 @@ class SerialdumpWrapper(SerialWrapper):
 
     def serial_send(self, payload, payload_len):
         # self.__print_byte_array(payload)
+        #self.log.info("trying encoding data base64 string %s", binascii.b2a_base64(payload))
         encoded_line = base64.b64encode(payload)
         serial_hdr = SerialHeader()
         serial_hdr.decoded_len = payload_len + ctypes.sizeof(SerialHeader)
@@ -47,23 +50,25 @@ class SerialdumpWrapper(SerialWrapper):
         msg.extend(serial_hdr)
         msg.extend(encoded_line)
         msg.append(0x0a)
+        #self.log.info("full encoded line %s%s",bytearray(serial_hdr).decode(), binascii.b2a_base64(payload))
         # self.__print_byte_array(msg)
-        self.serialdump_process.stdin.write(msg)
+        self.serialdump_process.stdin.write(msg.decode(encoding="utf-8", errors="ignore"))
         self.serialdump_process.stdin.flush()
 
     def __serial_listen(self, rx_callback, stop_event):
         while not stop_event.is_set():
             line = self.serialdump_process.stdout.readline().strip()
+            #u = binascii.hexlify(line)
+            #print(line)
             if line != '':
                 if line[2:ctypes.sizeof(SerialHeader)] == 'FFFFFFFF':
                     try:
-                        enc_len = SerialWrapper.fm_serial_header.unpack(line[0:2])[1]
-                        dec_line = bytearray(base64.b64decode(line[ctypes.sizeof(SerialHeader):enc_len]))
-                        self.log.info(line)
-                        self.log.info(enc_len)
-                        #~ self.__print_byte_array(dec_line)
-                        rx_callback(0, dec_line)
+                        enc_len = SerialWrapper.fm_serial_header.unpack(bytearray(line[0:2], 'utf-8'))[1]
+                        dec_line = base64.b64decode(line[ctypes.sizeof(SerialHeader):enc_len])
+                        #print(dec_line)
+                        rx_callback(0, bytearray(dec_line))
                     except (RuntimeError, TypeError, NameError):
                         rx_callback(1, None)
+                        traceback.print_exc(file=sys.stdout)
                 else:
                     self.log.info("PRINTF: %s", line)

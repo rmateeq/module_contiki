@@ -25,6 +25,7 @@ class TAISCConnector(wishful_module.AgentModule):
         self.radio_program_names = {}
         for rp_name in self.radio_programs.keys():
             self.radio_program_names[self.radio_programs[rp_name]] = rp_name
+        self.supported_interfaces = kwargs['SupportedInterfaces']
 
     @wishful_module.bind_function(upis.radio.set_parameters)
     def set_radio_parameter(self, param_key_values):
@@ -186,6 +187,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = []
         param_keys = ["IEEE802154_macShortAddress"]
         node = self.node_factory.get_node(self.interface)
+        self.log.info("get_hw_addr")
         if node is not None:
             ret = node.read_parameters('taisc', param_keys)
             if type(ret) == dict:

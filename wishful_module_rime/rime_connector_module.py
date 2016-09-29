@@ -8,6 +8,9 @@ from wishful_module_gitar.lib_gitar import SensorNodeFactory
 import logging
 import inspect
 
+import traceback
+import sys
+
 @wishful_module.build_module
 class RIMEConnector(wishful_module.AgentModule):
     def __init__(self,**kwargs):
@@ -76,7 +79,7 @@ class RIMEConnector(wishful_module.AgentModule):
     def get_network_measurements(self, measurement_keys):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.get_measurements('rime', measurement_keys)
+            return node.read_measurements('rime', measurement_keys)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" % (self.interface, fname))
@@ -90,7 +93,7 @@ class RIMEConnector(wishful_module.AgentModule):
                 measurement_report[key] = []
             for i in xrange(0,num_collects_report):
                 time.sleep(collect_period)
-                ret = node.get_measurements('rime', measurement_keys)
+                ret = node.read_measurements('rime', measurement_keys)
                 for key in ret.keys():
                     measurement_report[key].append(ret[key])
             report_callback(node.interface, measurement_report)
@@ -106,11 +109,17 @@ class RIMEConnector(wishful_module.AgentModule):
             self.log.fatal("%s Interface %s does not exist!" % (self.interface, fname))
             raise exceptions.InvalidArgumentException(func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.net.subscribe_events)
-    def define_network_event(self, event_keys, event_callback):
+    @wishful_module.bind_function(upis.net.subscribe_events_net)
+    def define_network_event(self, event_keys, event_callback, event_duration):
         node = self.node_factory.get_node(self.interface)
         if node != None:
-            return node.define_events('rime',event_keys,event_callback, event_duration)
+            try:
+                return node.add_events_subscriber('rime',event_keys,event_callback, event_duration)
+            except Exception as err:
+                #exc_type, exc_value, exc_tb = sys.exc_info()
+                #tbe = traceback.TracebackException(exc_type, exc_value, exc_tb,)
+                #print(''.join(tbe.format()))
+                traceback.print_exc(file=sys.stdout)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" % (self.interface, fname))
