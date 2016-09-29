@@ -102,8 +102,8 @@ class ContikiNode(SensorNode):
                               self.interface, key, connector_module)
         if message_hdr.num_args > 0:
             message = bytearray(message_hdr.to_bin()) + message
-            self.log.info("Sending %s", binascii.hexlify(message))
-            self.log.info("Sending %s", message.decode("utf-8"))
+            #self.log.info("Sending %s", binascii.hexlify(message))
+            #self.log.info("Sending %s", message.decode("utf-8"))
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
                 self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
