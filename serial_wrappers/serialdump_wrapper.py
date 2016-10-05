@@ -20,7 +20,7 @@ class SerialdumpWrapper(SerialWrapper):
                                                         '-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         else:
             self.serialdump_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux',
-                                                        '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                                        '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.__rx_thread = None
         self.__rx_callback = None
         self.__thread_stop = None
@@ -63,7 +63,7 @@ class SerialdumpWrapper(SerialWrapper):
             if line != '':
                 if line[2:ctypes.sizeof(SerialHeader)] == 'FFFFFFFF':
                     try:
-                        enc_len = SerialWrapper.fm_serial_header.unpack(bytearray(line[0:2], 'utf-8'))[1]
+                        enc_len = SerialWrapper.fm_serial_header.unpack(bytearray(line[0:2], 'utf-8', errors="ignore"))[1]
                         dec_line = base64.b64decode(line[ctypes.sizeof(SerialHeader):enc_len])
                         #print(dec_line)
                         rx_callback(0, bytearray(dec_line))
