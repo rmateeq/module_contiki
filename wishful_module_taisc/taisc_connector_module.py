@@ -35,7 +35,7 @@ class TAISCConnector(wishful_module.AgentModule):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
             try:
-                return node.write_parameters('taisc', param_key_values)
+                return node.write_parameters('taisc', param_key_values_dict)
             except Exception as err:
                 traceback.print_exc(file=sys.stdout)
         else:

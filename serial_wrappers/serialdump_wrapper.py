@@ -57,8 +57,6 @@ class SerialdumpWrapper(SerialWrapper):
     def __serial_listen(self, rx_callback, stop_event):
         while not stop_event.is_set():
             line = self.serialdump_process.stdout.readline().strip()
-            #u = binascii.hexlify(line)
-            #print(line)
             if line != '':
                 if line[2:ctypes.sizeof(SerialHeader)] == 'FFFFFFFF':
                     try:
