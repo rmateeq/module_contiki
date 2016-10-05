@@ -148,11 +148,12 @@ class SensorDataType():
         else:
             import numpy as np
             dt = np.dtype(self.np_format).newbyteorder('>')
-            s = bytearray(np.array(tuple(value,), dt))
+            s = bytearray(np.array(tuple(value[0,self.type_len],), dt))
             bin_val.extend(s)
             offset = self.type_len
             while offset < len(value):
                 dt = np.dtype(self.np_sub_format).newbyteorder('>')
+                print("to bin offset {} len {}".format(offset, dt.itemsize))
                 s = bytearray(np.array(tuple(value[offset:offset + dt.itemsize],), dt))
                 bin_val.extend(s)
                 offset = offset + dt.itemsize

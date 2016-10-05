@@ -13,6 +13,9 @@ import inspect
 import _thread as thread
 import time
 
+import traceback
+import sys
+
 
 @wishful_module.build_module
 class TAISCConnector(wishful_module.AgentModule):
@@ -30,7 +33,10 @@ class TAISCConnector(wishful_module.AgentModule):
     def set_radio_parameter(self, param_key_values):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.write_parameters('taisc', param_key_values)
+            try:
+                return node.write_parameters('taisc', param_key_values)
+            except Exception as err:
+                traceback.print_exc(file=sys.stdout)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %

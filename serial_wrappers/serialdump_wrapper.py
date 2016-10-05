@@ -14,8 +14,7 @@ class SerialdumpWrapper(SerialWrapper):
         self.__interface = interface
         self.__serial_dev = serial_dev
         if socket.gethostname().find("wilab2") == -1:
-            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux',
-                                                        '-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux','-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         else:
             self.serialdump_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux',
                                                         '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -48,7 +47,7 @@ class SerialdumpWrapper(SerialWrapper):
         msg.extend(encoded_line)
         msg.append(0x0a)
         # self.__print_byte_array(msg)
-        self.serialdump_process.stdin.write(msg)
+        self.serialdump_process.stdin.write(msg.decode(encoding="utf-8", errors="ignore"))
         self.serialdump_process.stdin.flush()
 
     def __serial_listen(self, rx_callback, stop_event):
@@ -57,10 +56,10 @@ class SerialdumpWrapper(SerialWrapper):
             if line != '':
                 if line[2:ctypes.sizeof(SerialHeader)] == 'FFFFFFFF':
                     try:
-                        enc_len = SerialWrapper.fm_serial_header.unpack(line[0:2])[1]
+                        enc_len = SerialWrapper.fm_serial_header.unpack(bytearray(line[0:2], 'utf-8', errors="ignore"))[1]
                         dec_line = bytearray(base64.b64decode(line[ctypes.sizeof(SerialHeader):enc_len]))
-                        self.log.info(line)
-                        self.log.info(enc_len)
+                        #self.log.info(line)
+                        #self.log.info(enc_len)
                         #~ self.__print_byte_array(dec_line)
                         rx_callback(0, dec_line)
                     except (RuntimeError, TypeError, NameError):
