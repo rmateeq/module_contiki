@@ -3,7 +3,7 @@ from serial_wrappers.lib_serial import SerialWrapper
 import errno
 import logging
 import time
-
+import binascii
 
 class ContikiNode(SensorNode):
 
@@ -102,6 +102,8 @@ class ContikiNode(SensorNode):
                               self.interface, key, connector_module)
         if message_hdr.num_args > 0:
             message = bytearray(message_hdr.to_bin()) + message
+            #self.log.info("Sending %s", binascii.hexlify(message))
+            #self.log.info("Sending %s", message.decode("utf-8"))
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
                 self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
@@ -145,7 +147,7 @@ class ContikiNode(SensorNode):
 
     def read_measurements(self, connector_module, measurement_keys):
         message = bytearray()
-        message_hdr = ControlMsgHeader(CommandOpCode.PARAM_GET, 0, 0, ++self.sequence_number)
+        message_hdr = ControlMsgHeader(CommandOpCode.PARAM_GET, 0, ++self.sequence_number)
         for key in measurement_keys:
             if connector_module in self.measurements_name_dct and key in self.measurements_name_dct[connector_module]:
                 m = self.measurements_name_dct[connector_module][key]
@@ -198,7 +200,7 @@ class ContikiNode(SensorNode):
 
     def add_events_subscriber(self, connector_module, event_keys, event_callback, event_duration):
         message = bytearray()
-        message_hdr = ControlMsgHeader(CommandOpCode.EVENT_REGISTER, 0, 0, ++self.sequence_number)
+        message_hdr = ControlMsgHeader(CommandOpCode.EVENT_REGISTER, 0, ++self.sequence_number)
         for key in event_keys:
             if connector_module in self.events_name_dct and key in self.events_name_dct[connector_module]:
                 e = self.events_name_dct[connector_module][key]
@@ -207,11 +209,14 @@ class ContikiNode(SensorNode):
                 message.extend(uint16_data_type.value_to_bin(event_duration))
                 # message_hdr.args_len+=len(e)
                 message_hdr.num_args += 1
+                self.log.info("Adding event %s", key)
             else:
                 self.log.info("ContikiNode %s- add_events_subscriber: event \"%s\" not found for connector %s",
                               self.interface, key, connector_module)
         if message_hdr.num_args > 0:
             message = bytearray(message_hdr.to_bin()) + message
+            #self.log.info("Sending message %s", binascii.hexlify(message))
+            #self.log.info("sending message %s", message.decode())
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
                 event_key_errors = {}
@@ -222,7 +227,7 @@ class ContikiNode(SensorNode):
                     e = self.events_id_dct[connector_module][e_hdr.unique_id]
                     error = int8_data_type.value_from_buf(resp_message[line_ptr:])
                     line_ptr += int8_data_type.type_len
-                    if value == 0:
+                    if error == 0:
                         e.subscriber_callbacks.append(event_callback)
                     event_key_errors[e.unique_name] = error
                 return event_key_errors
@@ -280,7 +285,7 @@ class ContikiNode(SensorNode):
 
     def __serial_rx_handler(self, error, response_message):
         if error == 0:
-            if response_message[0] == ControlOpCode.EVENT_PUSH:
+            if response_message[0] == CommandOpCode.EVENT_PUSH:
                 event_hdr = ControlMsgHeader.from_buf(response_message)
                 line_ptr = 6
                 e_hdr = GenericControlHeader.hdr_from_buf(response_message[line_ptr:])
@@ -300,6 +305,7 @@ class ContikiNode(SensorNode):
                 self.serial_wrapper.print_byte_array(response_message)
                 self.log.info("ContikiNode %s received response out-of-order, dropping", self.interface)
         else:
+            self.log.info("received error message")
             if self.__awaiting_command_response:
                 self.__awaiting_command_response = False
                 self.__response_message = None

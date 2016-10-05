@@ -137,7 +137,7 @@ class SensorDataType():
     def value_to_bin(self, value):
         bin_val = bytearray()
         if self.type_id < 11:
-            s = struct.Struct('<' + self.struct_format.format)
+            s = struct.Struct(b'<' + self.struct_format.format)
             # print s.pack(value)
             bin_val.extend(s.pack(value))
         elif self.type_id == 11:

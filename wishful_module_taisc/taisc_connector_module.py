@@ -28,9 +28,10 @@ class TAISCConnector(wishful_module.AgentModule):
         self.radio_program_names = {}
         for rp_name in self.radio_programs.keys():
             self.radio_program_names[self.radio_programs[rp_name]] = rp_name
+        self.supported_interfaces = kwargs['SupportedInterfaces']
 
     @wishful_module.bind_function(upis.radio.set_parameters)
-    def set_radio_parameter(self, param_key_values):
+    def set_radio_parameter(self, param_key_values_dict):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
             try:
@@ -45,10 +46,10 @@ class TAISCConnector(wishful_module.AgentModule):
                 func_name=fname, err_msg="Interface does not exist")
 
     @wishful_module.bind_function(upis.radio.get_parameters)
-    def get_radio_parameters(self, param_keys):
+    def get_radio_parameters(self, param_key_list):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.read_parameters('taisc', param_keys)
+            return node.read_parameters('taisc', param_key_list)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -57,10 +58,10 @@ class TAISCConnector(wishful_module.AgentModule):
                 func_name=fname, err_msg="Interface does not exist")
 
     @wishful_module.bind_function(upis.radio.get_measurements)
-    def get_radio_measurements(self, measurement_keys):
+    def get_radio_measurements(self, measurement_key_list):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.read_measurements('taisc', measurement_keys)
+            return node.read_measurements('taisc', measurement_key_list)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -83,11 +84,11 @@ class TAISCConnector(wishful_module.AgentModule):
         pass
 
     @wishful_module.bind_function(upis.radio.get_measurements_periodic)
-    def get_radio_measurements_periodic(self, measurement_keys, collect_period, report_period, num_iterations, report_callback):
+    def get_radio_measurements_periodic(self, measurement_key_list, collect_period, report_period, num_iterations, report_callback):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
             thread.start_new_thread(self.get_radio_measurements_periodic_worker, (
-                node, measurement_keys, collect_period, report_period, num_iterations, report_callback,))
+                node, measurement_key_list, collect_period, report_period, num_iterations, report_callback,))
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -96,10 +97,10 @@ class TAISCConnector(wishful_module.AgentModule):
                 func_name=fname, err_msg="Interface does not exist")
 
     @wishful_module.bind_function(upis.radio.subscribe_events)
-    def define_radio_event(self, event_keys, event_callback, event_duration):
+    def define_radio_event(self, event_key_list, event_callback, event_duration):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.add_events_subscriber('taisc', event_keys, event_callback, event_duration)
+            return node.add_events_subscriber('taisc', event_key_list, event_callback, event_duration)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -108,11 +109,10 @@ class TAISCConnector(wishful_module.AgentModule):
                 func_name=fname, err_msg="Interface does not exist")
 
     @wishful_module.bind_function(upis.radio.activate_radio_program)
-    def set_active(self, radio_program_name):
+    def set_active(self, name):
         param_key_values = {}
-        if radio_program_name in self.radio_programs:
-            param_key_values["TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs[
-                radio_program_name]
+        if name in self.radio_programs:
+            param_key_values["TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs[name]
             node = self.node_factory.get_node(self.interface)
             if node is not None:
                 ret = node.write_parameters('taisc', param_key_values)
@@ -132,14 +132,14 @@ class TAISCConnector(wishful_module.AgentModule):
                     func_name=fname, err_msg="Interface does not exist")
         else:
             fname = inspect.currentframe().f_code.co_name
-            self.log.warn("Wrong radio program name: %s" % radio_program_name)
+            self.log.warn("Wrong radio program name: %s" % name)
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Radio Program does not exist")
 
     @wishful_module.bind_function(upis.radio.deactivate_radio_program)
-    def set_inactive(self, radio_program_name):
+    def set_inactive(self, name):
         param_key_values = {}
-        if radio_program_name in self.radio_programs:
+        if name in self.radio_programs:
             param_key_values[
                 "TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs['CSMA']
             node = self.node_factory.get_node(self.interface)
@@ -161,7 +161,7 @@ class TAISCConnector(wishful_module.AgentModule):
                     func_name=fname, err_msg="Interface does not exist")
         else:
             fname = inspect.currentframe().f_code.co_name
-            self.log.warn("Wrong radio program name: %s" % radio_program_name)
+            self.log.warn("Wrong radio program name: %s" % name)
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Radio Program does not exist")
 
@@ -192,6 +192,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = []
         param_keys = ["IEEE802154_macShortAddress"]
         node = self.node_factory.get_node(self.interface)
+        self.log.info("get_hw_addr")
         if node is not None:
             ret = node.read_parameters('taisc', param_keys)
             if type(ret) == dict:
