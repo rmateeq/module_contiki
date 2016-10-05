@@ -70,7 +70,6 @@ class ContikiNode(SensorNode):
             message = bytearray(message_hdr.to_bin()) + message
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
-                self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
                 param_key_values = {}
                 line_ptr = 0
                 for i in range(0, message_hdr.num_args):
@@ -79,7 +78,6 @@ class ContikiNode(SensorNode):
                     error = int8_data_type.value_from_buf(resp_message[line_ptr:])
                     line_ptr += int8_data_type.type_len
                     param_key_values[self.params_id_dct[connector_module][p_hdr.unique_id].unique_name] = error
-                # self.log.info('write_parameters returns %s',param_key_values)
                 return param_key_values
             else:
                 self.log.info('Error %s sending message', resp_message)
@@ -106,7 +104,7 @@ class ContikiNode(SensorNode):
             #self.log.info("Sending %s", message.decode("utf-8"))
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
-                self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
+                #~ self.serial_wrapper._SerialdumpWrapper__print_byte_array(resp_message)
                 param_key_values = {}
                 line_ptr = 0
                 for i in range(0, message_hdr.num_args):
@@ -286,6 +284,8 @@ class ContikiNode(SensorNode):
     def __serial_rx_handler(self, error, response_message):
         if error == 0:
             if response_message[0] == CommandOpCode.EVENT_PUSH:
+				self.log.info("Received event!")
+				self.serial_wrapper.print_byte_array(response_message)
                 event_hdr = ControlMsgHeader.from_buf(response_message)
                 line_ptr = 6
                 e_hdr = GenericControlHeader.hdr_from_buf(response_message[line_ptr:])

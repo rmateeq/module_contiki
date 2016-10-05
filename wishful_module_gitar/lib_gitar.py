@@ -153,7 +153,6 @@ class SensorDataType():
             offset = len(dt.fields)
             while offset < len(value):
                 dt = np.dtype(self.np_sub_format).newbyteorder('>')
-                print("to bin offset {} len {}".format(offset, len(dt.fields)))
                 s = bytearray(np.array(tuple(value[offset:offset + len(dt.fields)],), dt))
                 bin_val.extend(s)
                 offset = offset + len(dt.fields)
