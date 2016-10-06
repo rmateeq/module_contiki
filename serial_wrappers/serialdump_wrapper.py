@@ -24,7 +24,7 @@ class SerialdumpWrapper(SerialWrapper):
         self.__rx_callback = None
         self.__thread_stop = None
 
-    def __print_byte_array(self, b):
+    def print_byte_array(self, b):
         print(' '.join('{:02x}'.format(x) for x in b))
 
     def set_serial_rxcallback(self, rx_callback):
