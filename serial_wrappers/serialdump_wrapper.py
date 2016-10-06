@@ -24,7 +24,7 @@ class SerialdumpWrapper(SerialWrapper):
         self.__rx_callback = None
         self.__thread_stop = None
 
-    def __print_byte_array(self, b):
+    def print_byte_array(self, b):
         print(' '.join('{:02x}'.format(x) for x in b))
 
     def set_serial_rxcallback(self, rx_callback):
@@ -37,7 +37,7 @@ class SerialdumpWrapper(SerialWrapper):
         self.__rx_thread.start()
 
     def serial_send(self, payload, payload_len):
-        # self.__print_byte_array(payload)
+        # self.print_byte_array(payload)
         #self.log.info("trying encoding data base64 string %s", binascii.b2a_base64(payload))
         encoded_line = base64.b64encode(payload)
         serial_hdr = SerialHeader()
@@ -50,7 +50,7 @@ class SerialdumpWrapper(SerialWrapper):
         msg.extend(encoded_line)
         msg.append(0x0a)
         #self.log.info("full encoded line %s%s",bytearray(serial_hdr).decode(), binascii.b2a_base64(payload))
-        # self.__print_byte_array(msg)
+        # self.print_byte_array(msg)
         self.serialdump_process.stdin.write(msg.decode(encoding="utf-8", errors="ignore"))
         self.serialdump_process.stdin.flush()
 
