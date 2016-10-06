@@ -284,8 +284,8 @@ class ContikiNode(SensorNode):
     def __serial_rx_handler(self, error, response_message):
         if error == 0:
             if response_message[0] == CommandOpCode.EVENT_PUSH:
-				self.log.info("Received event!")
-				self.serial_wrapper.print_byte_array(response_message)
+                self.log.info("Received event!")
+                self.serial_wrapper.print_byte_array(response_message)
                 event_hdr = ControlMsgHeader.from_buf(response_message)
                 line_ptr = 6
                 e_hdr = GenericControlHeader.hdr_from_buf(response_message[line_ptr:])
