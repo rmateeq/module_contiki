@@ -201,12 +201,9 @@ int main(int argc, char **argv)
     perror("could not get options");
     exit(-1);
   }
-  ioctl(fd,TIOCMGET,&hs);
-  hs &= ~ TIOCM_RTS;
-  ioctl(fd,TIOCMSET,&hs);
-  hs &= ~ TIOCM_DTR;
-  ioctl(fd,TIOCMSET,&hs);
-  sleep(1);
+  
+
+    
   /*   fprintf(stderr, "serial options set\n"); */
   cfsetispeed(&options, speed);
   cfsetospeed(&options, speed);
@@ -226,7 +223,23 @@ int main(int argc, char **argv)
     perror("could not set options");
     exit(-1);
   }
+  
+  
+  sleep(1);
+  tcflush(fd,TCIOFLUSH);
+  
+  ioctl(fd,TIOCMGET,&hs);
 
+
+  
+  hs &= ~ TIOCM_RTS;
+  ioctl(fd,TIOCMSET,&hs);
+  
+  hs &= ~ TIOCM_DTR;
+  ioctl(fd,TIOCMSET,&hs);
+  
+  
+  
   /* Make read() return immediately */
   /*    if (fcntl(fd, F_SETFL, FNDELAY) < 0) { */
   /*      perror("\ncould not set fcntl"); */
@@ -238,6 +251,7 @@ int main(int argc, char **argv)
   FD_SET(fileno(stdin), &mask);
 
   index = 0;
+    
   for(;;) {
     smask = mask;
     nfound = select(FD_SETSIZE, &smask, (fd_set *) 0, (fd_set *) 0, (struct timeval *) 0);
@@ -273,7 +287,7 @@ int main(int argc, char **argv)
               exit(1);
             } else {
               fflush(NULL);
-	      usleep(1000);
+			  usleep(1000);
             }
           }
         }
