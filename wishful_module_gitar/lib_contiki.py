@@ -285,14 +285,14 @@ class ContikiNode(SensorNode):
         if error == 0:
             if response_message[0] == CommandOpCode.EVENT_PUSH:
                 self.log.info("Received event!")
-                self.serial_wrapper.print_byte_array(response_message)
+                #~ self.serial_wrapper.print_byte_array(response_message)
                 event_hdr = ControlMsgHeader.from_buf(response_message)
                 line_ptr = 6
                 e_hdr = GenericControlHeader.hdr_from_buf(response_message[line_ptr:])
                 line_ptr += len(e_hdr)
                 for connector in self.events_id_dct.keys():
                     if e_hdr.unique_id in self.events_id_dct[connector]:
-                        e = self.events_id_dct[e_hdr.unique_id]
+                        e = self.events_id_dct[connector][e_hdr.unique_id]
                         value = e.data_type.value_from_buf(response_message[line_ptr:])
                         for cb in e.subscriber_callbacks:
                             cb(e.unique_name, value)
