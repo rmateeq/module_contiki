@@ -30,7 +30,7 @@ class TAISCConnector(wishful_module.AgentModule):
             self.radio_program_names[self.radio_programs[rp_name]] = rp_name
         self.supported_interfaces = kwargs['SupportedInterfaces']
 
-    @wishful_module.bind_function(upis.radio.set_parameters_radio)
+    @wishful_module.bind_function(upis.radio.set_parameters)
     def set_radio_parameter(self, param_key_values_dict):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
@@ -45,7 +45,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.get_parameters_radio)
+    @wishful_module.bind_function(upis.radio.get_parameters)
     def get_radio_parameters(self, param_key_list):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
@@ -57,7 +57,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.get_measurements_radio)
+    @wishful_module.bind_function(upis.radio.get_measurements)
     def get_radio_measurements(self, measurement_key_list):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
@@ -83,7 +83,7 @@ class TAISCConnector(wishful_module.AgentModule):
             report_callback(node.interface, measurement_report)
         pass
 
-    @wishful_module.bind_function(upis.radio.get_measurements_periodic_radio)
+    @wishful_module.bind_function(upis.radio.get_measurements_periodic)
     def get_radio_measurements_periodic(self, measurement_key_list, collect_period, report_period, num_iterations, report_callback):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
@@ -96,7 +96,7 @@ class TAISCConnector(wishful_module.AgentModule):
             raise exceptions.InvalidArgumentException(
                 func_name=fname, err_msg="Interface does not exist")
 
-    @wishful_module.bind_function(upis.radio.subscribe_events_radio)
+    @wishful_module.bind_function(upis.radio.subscribe_events)
     def define_radio_event(self, event_key_list, event_callback, event_duration):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
