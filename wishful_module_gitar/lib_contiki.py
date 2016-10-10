@@ -293,7 +293,7 @@ class ContikiNode(SensorNode):
                         e = self.events_id_dct[connector][e_hdr.unique_id]
                         value = e.data_type.value_from_buf(response_message[line_ptr:])
                         for cb in e.subscriber_callbacks:
-                            cb(e.unique_name, value)
+                            cb(self.interface, e.unique_name, value)
                         return
                 self.log.info("ContikiNode %s received unknown event %s %s, dropping", self.interface, event_hdr, e_hdr)
             elif self.__awaiting_command_response:
