@@ -15,7 +15,7 @@ class ContikiNode(SensorNode):
         self.interface = interface
         self.serial_wrapper = serial_wrapper
         self.serial_wrapper.set_serial_rxcallback(self.__serial_rx_handler)
-        time.sleep(5)
+        time.sleep(2)
         self.__response_message = bytearray()
         self.sequence_number = 0
         if auto_config is True:
