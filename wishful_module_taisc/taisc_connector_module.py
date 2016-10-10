@@ -192,7 +192,6 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = []
         param_keys = ["IEEE802154_macShortAddress"]
         node = self.node_factory.get_node(self.interface)
-        self.log.info("get_hw_addr")
         if node is not None:
             ret = node.read_parameters('taisc', param_keys)
             if type(ret) == dict:
