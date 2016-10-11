@@ -1,6 +1,5 @@
 import socket
 import subprocess
-from serial_wrappers.lib_serial import *
 import threading
 import logging
 import base64
@@ -8,17 +7,26 @@ import ctypes
 import binascii
 import traceback
 import sys
+from ctypes import *
+import struct
+from communication_wrappers.lib_communication_wrapper import CommunicationWrapper
 
-class SerialdumpWrapper(SerialWrapper):
+class SerialHeader(Structure):
+    _fields_ = [("decoded_len",c_ubyte),("encoded_len",c_ubyte),("padding",c_ubyte * 8)]
+
+
+class SerialdumpWrapper(CommunicationWrapper):
+
+    fm_serial_header = struct.Struct('B B')
 
     def __init__(self, serial_dev, interface):
         self.log = logging.getLogger('SerialdumpWrapper.' + serial_dev)
         self.__interface = interface
         self.__serial_dev = serial_dev
         if socket.gethostname().find("wilab2") == -1:
-            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux','-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/communication_wrappers/bin/serialdump-linux','-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         else:
-            self.serialdump_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux',
+            self.serialdump_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/serialdump-linux',
                                                         '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.__rx_thread = None
         self.__rx_callback = None
@@ -27,8 +35,8 @@ class SerialdumpWrapper(SerialWrapper):
     def print_byte_array(self, b):
         print(' '.join('{:02x}'.format(x) for x in b))
 
-    def set_serial_rxcallback(self, rx_callback):
-        if self.__rx_thread != None:
+    def set_rx_callback(self, rx_callback):
+        if self.__rx_thread is not None:
             self.__thread_stop.set()
         self.__thread_stop = threading.Event()
         self.__rx_callback = rx_callback
@@ -36,8 +44,9 @@ class SerialdumpWrapper(SerialWrapper):
         self.__rx_thread.daemon = True
         self.__rx_thread.start()
 
-    def serial_send(self, payload, payload_len):
-        # self.print_byte_array(payload)
+    def send(self, payload):
+        payload_len = len(payload)
+        #self.print_byte_array(payload)
         #self.log.info("trying encoding data base64 string %s", binascii.b2a_base64(payload))
         encoded_line = base64.b64encode(payload)
         serial_hdr = SerialHeader()
@@ -60,7 +69,7 @@ class SerialdumpWrapper(SerialWrapper):
             if line != '':
                 if line[2:ctypes.sizeof(SerialHeader)] == 'FFFFFFFF':
                     try:
-                        enc_len = SerialWrapper.fm_serial_header.unpack(bytearray(line[0:2], 'utf-8', errors="ignore"))[1]
+                        enc_len = fm_serial_header.unpack(bytearray(line[0:2], 'utf-8', errors="ignore"))[1]
                         dec_line = base64.b64decode(line[ctypes.sizeof(SerialHeader):enc_len])
                         rx_callback(0, bytearray(dec_line))
                     except (RuntimeError, TypeError, NameError):

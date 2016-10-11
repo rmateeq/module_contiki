@@ -1,11 +1,12 @@
-from wishful_module_gitar.lib_gitar import *
-from serial_wrappers.lib_serial import SerialWrapper
 import errno
 import logging
 import time
 import binascii
 
-class ContikiNode(SensorNode):
+from wishful_module_gitar.lib_gitar import SensorNode
+from communication_wrappers.lib_serial import *
+
+class CustomNode(SensorNode):
 
     def __init__(self, mac_addr, ip_addr, interface, serial_wrapper, auto_config=False):
         mod_name = 'ContikiNode.' + interface
@@ -14,7 +15,7 @@ class ContikiNode(SensorNode):
         self.ip_addr = ip_addr
         self.interface = interface
         self.serial_wrapper = serial_wrapper
-        self.serial_wrapper.set_serial_rxcallback(self.__serial_rx_handler)
+        self.serial_wrapper.set_rx_callback(self.__serial_rx_handler)
         time.sleep(5)
         self.__response_message = bytearray()
         self.sequence_number = 0
@@ -104,7 +105,6 @@ class ContikiNode(SensorNode):
             #self.log.info("Sending %s", message.decode("utf-8"))
             resp_message = self.__send_serial_cmd(4, message, message_hdr)
             if type(resp_message) == bytearray:
-                #~ self.serial_wrapper._SerialdumpWrapperprint_byte_array(resp_message)
                 param_key_values = {}
                 line_ptr = 0
                 for i in range(0, message_hdr.num_args):
@@ -255,7 +255,7 @@ class ContikiNode(SensorNode):
         while num_attempts < max_attempts:
             num_attempts += 1
             self.__awaiting_command_response = True
-            self.serial_wrapper.serial_send(message, len(message))
+            self.serial_wrapper.send(message)
             if self.__await_command_response() and self.__response_message is not None:
                 response_hdr = ControlMsgHeader.from_buf(self.__response_message)
                 if response_hdr.opcode != CommandOpCode.ERROR_RESPONSE and response_hdr == message_hdr:
