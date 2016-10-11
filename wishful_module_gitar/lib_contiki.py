@@ -138,7 +138,7 @@ class ContikiNode(SensorNode):
                 tformat = ""
                 tsubformat = ""
             measurement = SensorMeasurement(measurement_def['unique_name'], int(
-                measurement_def['unique_id']), measurement_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
+                measurement_def['unique_id']), measurement_def['type_name'], int(tlen), tformat, tsubformat, measurement_def['endianness'])
             self.measurements_id_dct[connector_module][int(measurement_def['unique_id'])] = measurement
             self.measurements_name_dct[connector_module][measurement_def['unique_name']] = measurement
 
@@ -191,7 +191,7 @@ class ContikiNode(SensorNode):
                 tformat = ""
                 tsubformat = ""
             event = SensorEvent(event_def['unique_name'], int(event_def['unique_id']),
-                                event_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
+                                event_def['type_name'], int(tlen), tformat, tsubformat, event_def['endianness'])
             self.events_id_dct[connector_module][int(event_def['unique_id'])] = event
             self.events_name_dct[connector_module][event_def['unique_name']] = event
 
