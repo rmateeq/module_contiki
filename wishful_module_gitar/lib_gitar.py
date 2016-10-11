@@ -6,6 +6,7 @@ import configparser as ConfigParser
 import logging
 import time
 import csv
+import sys
 
 UINT8_T = struct.Struct("B")
 INT8_T = struct.Struct("b")
