@@ -351,7 +351,7 @@ class SensorNodeFactory():
                 event_defs = []
                 for row in reader:
                     r_def = {'unique_name': row["unique_name"], 'unique_id': row["unique_id"], 'type_name': row[
-                        "type"], 'type_len': row["length"], 'type_format': row["struct_format"], 'type_subformat': row["struct_subformat"]}
+                        "type"], 'type_len': row["length"], 'type_format': row["struct_format"], 'type_subformat': row["struct_subformat"], "endianness": row["endianness"]}
                     if row['category'] == "PARAMETER":
                         param_defs.append(r_def)
                     elif row['category'] == "MEASUREMENT":
