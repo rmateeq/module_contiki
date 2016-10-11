@@ -47,7 +47,7 @@ class ContikiNode(SensorNode):
                 tformat = ""
                 tsubformat = ""
             param = SensorParameter(param_def['unique_name'], int(
-                param_def['unique_id']), param_def['type_name'], int(tlen), tformat, tsubformat)
+                param_def['unique_id']), param_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
             self.params_id_dct[connector_module][int(param_def['unique_id'])] = param
             self.params_name_dct[connector_module][param_def['unique_name']] = param
 
@@ -139,7 +139,7 @@ class ContikiNode(SensorNode):
                 tformat = ""
                 tsubformat = ""
             measurement = SensorMeasurement(measurement_def['unique_name'], int(
-                measurement_def['unique_id']), measurement_def['type_name'], int(tlen), tformat, tsubformat)
+                measurement_def['unique_id']), measurement_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
             self.measurements_id_dct[connector_module][int(measurement_def['unique_id'])] = measurement
             self.measurements_name_dct[connector_module][measurement_def['unique_name']] = measurement
 
@@ -192,7 +192,7 @@ class ContikiNode(SensorNode):
                 tformat = ""
                 tsubformat = ""
             event = SensorEvent(event_def['unique_name'], int(event_def['unique_id']),
-                                event_def['type_name'], int(tlen), tformat, tsubformat)
+                                event_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
             self.events_id_dct[connector_module][int(event_def['unique_id'])] = event
             self.events_name_dct[connector_module][event_def['unique_name']] = event
 

@@ -119,7 +119,7 @@ class SensorDataType():
                     UINT64_T, INT64_T, BOOL_T, CHAR_T, STRING_T, STRUCT_T,
                     DYN_STRUCT_T]
 
-    def __init__(self, type_name, type_len=-1, np_format="", np_sub_format=""):
+    def __init__(self, type_name, type_len=-1, np_format="", np_sub_format="",endianness="<"):
         self.type_name = type_name
         self.type_id = SensorDataType.typeID[type_name]
         if type_len != -1:
@@ -133,26 +133,39 @@ class SensorDataType():
         if self.type_name == "DYN_STRUCT_T":
             self.np_sub_format = np_sub_format
         self.struct_format = SensorDataType.typeAsStruct[self.type_id]
+        self.endianness = endianness
+        if sys.byteorder == 'little':
+		    self.host_endianness = '<'
+		else:
+			self.host_endianness = '>'
 
     def value_to_bin(self, value):
         bin_val = bytearray()
         if self.type_id < 11:
-            s = struct.Struct(b'<' + self.struct_format.format)
+            s = struct.Struct(self.struct_format.format)
+            if self.endianness != self.host_endianness:
+				s = struct.Struct(self.endianness.encode('utf-8') + self.struct_format.format)
             # print s.pack(value)
             bin_val.extend(s.pack(value))
         elif self.type_id == 11:
             import numpy as np
-            dt = np.dtype(self.np_format).newbyteorder('>')
+            dt = np.dtype(self.np_format)
+            if self.endianness != self.host_endianness:
+				dt = dt.newbyteorder(self.endianness)
             s = bytearray(np.array(tuple(value,), dt))
             bin_val.extend(s)
         else:
             import numpy as np
-            dt = np.dtype(self.np_format).newbyteorder('>')
+            dt = np.dtype(self.np_format)
+            if self.endianness != self.host_endianness:
+				dt = dt.newbyteorder(self.endianness)
             s = bytearray(np.array(tuple(value[0:len(dt.fields)],), dt))
             bin_val.extend(s)
             offset = len(dt.fields)
             while offset < len(value):
-                dt = np.dtype(self.np_sub_format).newbyteorder('>')
+                dt = np.dtype(self.np_sub_format)
+                if self.endianness != self.host_endianness:
+				dt = dt.newbyteorder(self.endianness)
                 s = bytearray(np.array(tuple(value[offset:offset + len(dt.fields)],), dt))
                 bin_val.extend(s)
                 offset = offset + len(dt.fields)
@@ -161,16 +174,18 @@ class SensorDataType():
     def value_from_buf(self, buf):
         import numpy as np
         dt = np.dtype(self.np_format)
+        if self.endianness != self.host_endianness:
+			dt = dt.newbyteorder(self.host_endianness)
         if self.type_name == "DYN_STRUCT_T":
-            ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[0:dt.itemsize]).byteswap(), dt)[0]
+            ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[0:dt.itemsize]), dt)[0]
             offset = dt.itemsize
             while offset < len(buf):
                 dt = np.dtype(self.np_sub_format)
-                ret_tpl = ret_tpl + np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[offset:dt.itemsize]).byteswap(), dt)[0]
+                ret_tpl = ret_tpl + np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[offset:dt.itemsize]), dt)[0]
                 offset = offset + dt.itemsize
             return ret_tpl
         return np.frombuffer(np.ndarray(shape=(), dtype=dt,
-                                        buffer=buf).byteswap(), dt)[0]
+                                        buffer=buf), dt)[0]
 
 
 uint32_data_type = SensorDataType("UINT32_T")
@@ -183,10 +198,10 @@ class GenericControlHeader():
 
     fm_header = struct.Struct('<H B B')
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat="", endianness = "<"):
         self.unique_name = uname
         self.unique_id = uid
-        self.data_type = SensorDataType(type_name, type_len, type_np_format, type_np_subformat)
+        self.data_type = SensorDataType(type_name, type_len, type_np_format, type_np_subformat, endianness)
 
     def __len__(self):
         return struct.calcsize(GenericControlHeader.fm_header.format)
@@ -207,26 +222,26 @@ class GenericControlHeader():
 
 class SensorEvent(GenericControlHeader):
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat="", endianness = "<"):
         GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
-                                      type_np_format, type_np_subformat)
+                                      type_np_format, type_np_subformat, endianness)
         self.event_duration = 0
         self.subscriber_callbacks = []
 
 
 class SensorParameter(GenericControlHeader):
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat="", endianness = "<"):
         GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
-                                      type_np_format, type_np_subformat)
+                                      type_np_format, type_np_subformat, endianness)
         self.change_list = []
 
 
 class SensorMeasurement(GenericControlHeader):
 
-    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat=""):
+    def __init__(self, uname, uid, type_name, type_len=-1, type_np_format="", type_np_subformat="", endianness = "<"):
         GenericControlHeader.__init__(self, uname, uid, type_name, type_len,
-                                      type_np_format, type_np_subformat)
+                                      type_np_format, type_np_subformat, endianness)
         self.is_periodic = False
         self.read_interval = 0
         self.report_interval = 0
