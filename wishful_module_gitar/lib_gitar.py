@@ -135,37 +135,37 @@ class SensorDataType():
         self.struct_format = SensorDataType.typeAsStruct[self.type_id]
         self.endianness = endianness
         if sys.byteorder == 'little':
-		    self.host_endianness = '<'
-		else:
-			self.host_endianness = '>'
+            self.host_endianness = '<'
+        else:
+            self.host_endianness = '>'
 
     def value_to_bin(self, value):
         bin_val = bytearray()
         if self.type_id < 11:
             s = struct.Struct(self.struct_format.format)
             if self.endianness != self.host_endianness:
-				s = struct.Struct(self.endianness.encode('utf-8') + self.struct_format.format)
+                s = struct.Struct(self.endianness.encode('utf-8') + self.struct_format.format)
             # print s.pack(value)
             bin_val.extend(s.pack(value))
         elif self.type_id == 11:
             import numpy as np
             dt = np.dtype(self.np_format)
             if self.endianness != self.host_endianness:
-				dt = dt.newbyteorder(self.endianness)
+                dt = dt.newbyteorder(self.endianness)
             s = bytearray(np.array(tuple(value,), dt))
             bin_val.extend(s)
         else:
             import numpy as np
             dt = np.dtype(self.np_format)
             if self.endianness != self.host_endianness:
-				dt = dt.newbyteorder(self.endianness)
+                dt = dt.newbyteorder(self.endianness)
             s = bytearray(np.array(tuple(value[0:len(dt.fields)],), dt))
             bin_val.extend(s)
             offset = len(dt.fields)
             while offset < len(value):
                 dt = np.dtype(self.np_sub_format)
                 if self.endianness != self.host_endianness:
-				dt = dt.newbyteorder(self.endianness)
+                dt = dt.newbyteorder(self.endianness)
                 s = bytearray(np.array(tuple(value[offset:offset + len(dt.fields)],), dt))
                 bin_val.extend(s)
                 offset = offset + len(dt.fields)
@@ -175,7 +175,7 @@ class SensorDataType():
         import numpy as np
         dt = np.dtype(self.np_format)
         if self.endianness != self.host_endianness:
-			dt = dt.newbyteorder(self.host_endianness)
+            dt = dt.newbyteorder(self.host_endianness)
         if self.type_name == "DYN_STRUCT_T":
             ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[0:dt.itemsize]), dt)[0]
             offset = dt.itemsize
