@@ -7,6 +7,7 @@ import logging
 import time
 import csv
 import sys
+import traceback
 
 UINT8_T = struct.Struct("B")
 INT8_T = struct.Struct("b")
@@ -367,6 +368,7 @@ class SensorNodeFactory():
                     self.__nodes[iface].register_events(connector_module, event_defs)
 
             except Exception as e:
+				traceback.print_exc(file=sys.stdout)
                 self.log.fatal("Could not read parameters for %s, from %s error: %s" %
                                (connector_module, control_extensions[connector_module], e))
 
