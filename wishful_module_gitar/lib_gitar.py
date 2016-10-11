@@ -368,7 +368,7 @@ class SensorNodeFactory():
                     self.__nodes[iface].register_events(connector_module, event_defs)
 
             except Exception as e:
-				traceback.print_exc(file=sys.stdout)
+                traceback.print_exc(file=sys.stdout)
                 self.log.fatal("Could not read parameters for %s, from %s error: %s" %
                                (connector_module, control_extensions[connector_module], e))
 
