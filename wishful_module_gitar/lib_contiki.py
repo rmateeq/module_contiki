@@ -46,8 +46,7 @@ class ContikiNode(SensorNode):
                 tlen = -1
                 tformat = ""
                 tsubformat = ""
-            param = SensorParameter(param_def['unique_name'], int(
-                param_def['unique_id']), param_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
+            param = SensorParameter(param_def['unique_name'], int(param_def['unique_id']), param_def['type_name'], int(tlen), tformat, tsubformat, param_def['endianness'])
             self.params_id_dct[connector_module][int(param_def['unique_id'])] = param
             self.params_name_dct[connector_module][param_def['unique_name']] = param
 
