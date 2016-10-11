@@ -165,7 +165,7 @@ class SensorDataType():
             while offset < len(value):
                 dt = np.dtype(self.np_sub_format)
                 if self.endianness != self.host_endianness:
-                dt = dt.newbyteorder(self.endianness)
+                    dt = dt.newbyteorder(self.endianness)
                 s = bytearray(np.array(tuple(value[offset:offset + len(dt.fields)],), dt))
                 bin_val.extend(s)
                 offset = offset + len(dt.fields)
