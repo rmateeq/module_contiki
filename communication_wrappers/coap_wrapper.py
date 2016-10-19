@@ -9,9 +9,6 @@ class CoAPWrapper(CommunicationWrapper):
         self.__ip_addr = ip_addr
         self.__interface = interface
 
-    def print_byte_array(self, b):
-        print(' '.join('{:02x}'.format(x) for x in b))
-
     def send(self, payload):
         client = HelperClient(server=(self.__ip_addr,5683))
         response = client.post("wishful_funcs", payload)

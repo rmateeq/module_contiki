@@ -11,6 +11,7 @@ from ctypes import *
 import struct
 from communication_wrappers.lib_communication_wrapper import CommunicationWrapper
 
+
 class SerialHeader(Structure):
     _fields_ = [("decoded_len",c_ubyte),("encoded_len",c_ubyte),("padding",c_ubyte * 8)]
 
@@ -59,7 +60,7 @@ class SerialdumpWrapper(CommunicationWrapper):
         msg.extend(encoded_line)
         msg.append(0x0a)
         #self.log.info("full encoded line %s%s",bytearray(serial_hdr).decode(), binascii.b2a_base64(payload))
-        # self.print_byte_array(msg)
+        #self.print_byte_array(msg)
         self.serialdump_process.stdin.write(msg.decode(encoding="utf-8", errors="ignore"))
         self.serialdump_process.stdin.flush()
 

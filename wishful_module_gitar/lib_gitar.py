@@ -6,6 +6,7 @@ import csv
 from wishful_module_gitar.contiki_node_custom import CustomNode
 from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 
+
 class SensorNode():
     __metaclass__ = abc.ABCMeta
 
@@ -40,6 +41,13 @@ class SensorNode():
     @abc.abstractmethod
     def reset(self):
         pass
+
+
+class SensorParameter():
+    def __init__(self, uid, name="", datatype=None):
+        self.uid = uid
+        self.name = name
+        self.datatype = datatype
 
 
 def ConfigSectionMap(config, section):
