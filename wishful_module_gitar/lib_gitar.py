@@ -185,11 +185,15 @@ class SensorDataType():
                 dt = np.dtype(self.np_sub_format)
                 ret_tpl = ret_tpl + np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[offset:dt.itemsize]), dt)[0]
                 offset = offset + dt.itemsize
-            for ind in range(0,len(ret_tpl)):
+            for ind in range(0, len(ret_tpl)):
                 ret_tpl[ind] = int(ret_tpl[ind])
             return ret_tpl
-        return int(np.frombuffer(np.ndarray(shape=(), dtype=dt,
-                                        buffer=buf), dt)[0])
+        if self.type_name == 'STRUCT_T':
+            ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf), dt)[0]
+            for ind in range(0, len(ret_tpl)):
+                ret_tpl[ind] = int(ret_tpl[ind])
+            return ret_tpl
+        return int(np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf), dt)[0])
 
 
 uint32_data_type = SensorDataType("UINT32_T")
