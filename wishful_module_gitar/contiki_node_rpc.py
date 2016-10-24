@@ -1,105 +1,128 @@
-from wishful_module_gitar.lib_gitar import SensorNode, SensorParameter
-from wishful_module_gitar.sensorDataType import SensorDataType
-from communication_wrappers.lib_rpc import SensorRPCFunc, read_ret_header
-from communication_wrappers.lib_tlv import TLV, read_TLV_from_buf
+from wishful_module_gitar.lib_gitar import SensorNode, SensorDataType, SensorParameter, SensorFunction, SensorConnector
+from communication_wrappers.lib_rpc import func_hdr_t, read_ret_header
 
 import logging
-import time
 
 
 class RPCNode(SensorNode):
 
-    def __init__(self, node_id, mac_addr, ip_addr, interface, com_wrapper, auto_config=False):
+    def __init__(self, node_uid, interface, mac_addr, ip_addr, com_wrapper):
         mod_name = 'ContikiNode.' + interface
         self.log = logging.getLogger(mod_name)
-        self.node_id = node_id
+        self.node_uid = node_uid
+        self.interface = interface
         self.mac_addr = mac_addr
         self.ip_addr = ip_addr
-        self.interface = interface
         self.com_wrapper = com_wrapper
-        time.sleep(5)
-        self.__response_message = bytearray()
-        self.sequence_number = 0
-        if auto_config is True:
-            # read params/events/measurements from sensor
-            self.log.warning("ToBe implemented")
-        else:
-            self.datatypes_id_dct = {}
-            self.datatypes_name_dct = {}
-            self.funcs_id_dct = {}
-            self.funcs_name_dct = {}
-            self.params_id_dct = {}
-            self.params_name_dct = {}
-            self.measurements_id_dct = {}
-            self.measurements_name_dct = {}
-            self.events_id_dct = {}
-            self.events_name_dct = {}
-        pass
+        self.datatypesIDs = {}
+        self.datatypes = []
+        self.connectorsIDs = {}
+        self.connectors = []
 
     def register_datatypes(self, datatype_defs):
         for datatype_def in datatype_defs:
-            datatype = SensorDataType(int(datatype_def['unique_id']),datatype_def['unique_name'],int(datatype_def['length']),datatype_def['endianness'],datatype_def['type_format'])
-            self.datatypes_id_dct[int(datatype_def['unique_id'])] = datatype
-            self.datatypes_name_dct[datatype_def['unique_name']] = datatype
+            datatype = SensorDataType(int(datatype_def['unique_id']),datatype_def['unique_name'],int(datatype_def['size']),datatype_def['format'],datatype_def['endianness'])
+            self.datatypesIDs[datatype.name] = datatype.uid
+            self.datatypes[datatype.uid] = datatype
 
-    def register_funcs(self, connector_module, func_defs):
-        self.funcs_id_dct[connector_module] = {}
-        self.funcs_name_dct[connector_module] = {}
-        for func_def in func_defs:
-            func = SensorRPCFunc(int(func_def['unique_connector_id']),int(func_def['unique_id']),func_def['unique_name'],int(func_def['num_of_args']),func_def['args_types'],int(func_def['ret_type']))
-            self.funcs_id_dct[connector_module][int(func_def['unique_id'])] = func
-            self.funcs_name_dct[connector_module][func_def['unique_name']] = func
+    def num_of_datatypes(self):
+        return len(self.datatypes)
+
+    def get_datatype_uid(self, datatype_name):
+        return self.datatypesIDs[datatype_name]
+
+    def get_datatype(self, datatype_name):
+        return self.datatypes[self.datatypesIDs[datatype_name]]
+
+    def register_connectors(self, con_defs):
+        for con_def in con_defs:
+            con = SensorConnector(int(con_def['unique_id']), con_def['unique_name'])
+            self.connectorsIDs[con.name] = con.uid
+            self.connectors[con.uid] = con
+
+    def num_of_connectors(self):
+        return len(self.connectors)
+
+    def get_connector_uid(self, con_name):
+        return self.connectorsIDs[con_name]
+
+    def get_connector(self, con_name):
+        return self.connectors[self.connectorsIDs[con_name]]
 
     def register_parameters(self, connector_module, param_defs):
-        self.params_id_dct[connector_module] = {}
-        self.params_name_dct[connector_module] = {}
+        con = self.get_connector(connector_module)
         for param_def in param_defs:
-            datatype = self.datatypes_name_dct[param_def['type_name']]
+            datatype = self.get_datatype(param_def['datatype'])
             param = SensorParameter(int(param_def['unique_id']), param_def['unique_name'], datatype)
-            self.params_id_dct[connector_module][int(param_def['unique_id'])] = param
-            self.params_name_dct[connector_module][param_def['unique_name']] = param
+            con.add_parameter(param)
+
+    def register_funcs(self, connector_module, func_defs):
+        con = self.get_connector(connector_module)
+        for func_def in func_defs:
+            args_types_names = func_def['args_datatypes'].split(",")
+            args_datatypes = []
+            for arg_type_name in args_types_names:
+                datatype = self.get_datatype(arg_type_name)
+                args_datatypes.append(datatype)
+            ret_datatype = self.get_datatype(func_def['ret_datatype'])
+            func = SensorFunction(int(func_def['unique_id']),func_def['unique_name'], args_datatypes, ret_datatype)
+            con.add_function(func)
 
     def write_parameters(self, connector_module, param_key_values):
+        con = self.get_connector(connector_module)
+        func = con.get_function("SETPARAMETER")
         message = bytearray()
-        f = self.funcs_name_dct[connector_module]['SETPARAMETER']
-        for key in param_key_values:
-            if connector_module in self.params_name_dct and key in self.params_name_dct[connector_module]:
-                p = self.params_name_dct[connector_module][key]
-                param_uid_tlv = TLV(self.datatypes_name_dct['UINT_16'].uid, self.datatypes_name_dct['UINT_16'].length, p.uid)
-                value_tlv = TLV(p.datatype.uid, p.datatype.length, param_key_values[key])
-                message += f.to_bin(self.datatypes_id_dct,param_uid_tlv,value_tlv)
+        params = []
+        for key,value in param_key_values:
+            message.extend(func_hdr_t(con.uid, func.uid, func.num_of_args()))
+            p = con.get_parameter(key)
+            params.append(p)
+            message.extend(self.get_datatype("UINT16").to_bin(p.uid))
+            if p.has_variable_size():
+                message.extend(len(value))
+            message.extend(p.datatype.to_bin(value))
         
         response_message = self.com_wrapper.send(message)
-        param_key_values = {}
+        resp_key_values = {}
         line_ptr = 0
-        for key in param_key_values:
+        i = 0
+        while line_ptr < len(response_message) and i < len(params):
             ret_hdr = read_ret_header(response_message[line_ptr:])
-            param_key_values[key] = ret_hdr.ret_code
+            resp_key_values[params[i].name] = ret_hdr.ret_code
             line_ptr += len(ret_hdr)
-        return param_key_values
+            i += 1
+        return resp_key_values
 
     def read_parameters(self, connector_module, param_keys):
+        con = self.get_connector(connector_module)
+        func = con.get_function("GETPARAMETER")
         message = bytearray()
-        f = self.funcs_name_dct[connector_module]['GETPARAMETER']
+        params = []
         for key in param_keys:
-            if connector_module in self.params_name_dct and key in self.params_name_dct[connector_module]:
-                p = self.params_name_dct[connector_module][key]
-                param_uid_tlv = TLV(self.datatypes_name_dct['UINT_16'].uid, self.datatypes_name_dct['UINT_16'].length, p.uid)
-                message += f.to_bin(self.datatypes_id_dct,param_uid_tlv)
+            message.extend(func_hdr_t(con.uid, func.uid, func.num_of_args()))
+            p = con.get_parameter(key)
+            params.append(p)
+            message.extend(self.get_datatype("UINT16").to_bin(p.uid))
 
         response_message = self.com_wrapper.send(message)
-        param_key_values = {}
+        resp_key_values = {}
         line_ptr = 0
-        for key in param_keys:
+        i = 0
+        while line_ptr < len(response_message) or i < len(params):
             ret_hdr = read_ret_header(response_message[line_ptr:])
             line_ptr += len(ret_hdr)
-            if ret_hdr.ret_code == 0:
-                ret_tlv = read_TLV_from_buf(self.datatypes_id_dct,response_message[line_ptr:])
-                param_key_values[key] = ret_tlv.value
-                if self.datatypes_id_dct[ret_tlv.type_uid].length == 0:
-                    line_ptr += 1
-                line_ptr += ret_tlv.length
-        return param_key_values
+
+            if p.has_variable_size():
+                value_length = self.get_datatype("UINT8").from_bin(response_message[line_ptr:])
+                line_ptr += 1
+                resp_key_values[params[i].name] = params[i].datatype.from_bin(response_message[line_ptr:], value_length)
+                line_ptr += value_length
+            else:
+                resp_key_values[params[i].name] = params[i].datatype.from_bin(response_message[line_ptr:])
+                line_ptr += p.datatyp.size
+
+            i += 1
+        return resp_key_values
 
     def register_measurements(self, connector_module, measurement_defs):
         pass

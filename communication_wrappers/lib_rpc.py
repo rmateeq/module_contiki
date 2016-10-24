@@ -40,27 +40,3 @@ class ret_hdr_t(LittleEndianStructure):
 def read_ret_header(message):
     connector_id,func_id,ret_type,ret_code = fmt_ret_header.unpack_from(message)
     return ret_hdr_t(connector_id,func_id,ret_type,ret_code)
-
-
-class SensorRPCFunc():
-    def __init__(self,connector_id, uid, name, num_of_args=0, args_types=[], ret_type=0):
-        self.connector_id = connector_id
-        self.uid = uid
-        self.name = name
-        self.num_of_args = num_of_args
-        self.args_types = args_types
-        self.ret_type = ret_type
-
-    def to_bin(self, datatypes, *tlv_args):
-        func_hdr = func_hdr_t(connector_id,func_id,num_of_args)
-        rpc_call = bytearray(func_hdr)
-
-        num_of_args = 0
-        for tlv_arg in tlv_args:
-            num_of_args += 1
-            rpc_call.extend(tlv_arg.to_bin(datatypes))
-
-        if num_of_args == self.num_of_args:
-            return rpc_call
-        else:
-            return None

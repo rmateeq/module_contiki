@@ -16,8 +16,7 @@ class GitarEngine(wishful_module.AgentModule):
         super(GitarEngine, self).__init__()
         self.log = logging.getLogger('GITAREngine.main')
         self.node_factory = SensorNodeFactory()
-        self.node_factory.create_nodes(kwargs['GitarConfig'], kwargs['SupportedInterfaces'], kwargs['ControlExtensions'])
-        pass
+        self.node_factory.create_nodes(kwargs['GitarConfig'], kwargs['SupportedInterfaces'])
 
     def create_control_net(self):
         for iface, node in self.node_factory.get_nodes.iteritems():
