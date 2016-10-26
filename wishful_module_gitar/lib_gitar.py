@@ -1,181 +1,10 @@
-import abc
 import configparser as ConfigParser
 import logging
 import csv
-import struct
-
 from wishful_module_gitar.contiki_node_custom import CustomNode
 from wishful_module_gitar.contiki_node_rpc import RPCNode
 from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
-
-
-class SensorNode():
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def register_datatypes(self, datatype_defs):
-        pass
-
-    @abc.abstractmethod
-    def register_connectors(self, con_defs):
-        pass
-
-    @abc.abstractmethod
-    def register_parameters(self, connector_module, param_defs):
-        pass
-
-    @abc.abstractmethod
-    def register_functions(self, connector_module, func_defs):
-        pass
-
-    @abc.abstractmethod
-    def write_parameters(self, connector_module, param_key_values):
-        pass
-
-    @abc.abstractmethod
-    def read_parameters(self, connector_module, param_keys):
-        pass
-
-    @abc.abstractmethod
-    def register_measurements(self, connector_module, measurement_defs):
-        pass
-
-    @abc.abstractmethod
-    def read_measurements(self, connector_module, measurement_keys):
-        pass
-
-    @abc.abstractmethod
-    def register_events(self, connector_module, event_defs):
-        pass
-
-    @abc.abstractmethod
-    def add_events_subscriber(self, connector_module, event_names, event_callback):
-        pass
-
-    @abc.abstractmethod
-    def reset(self):
-        pass
-
-
-class SensorDataType():
-
-    def __init__(self, uid=0, name="", size=0, struct_format="", endianness="<"):
-        self.uid = uid
-        self.name = name
-        self.size = size
-        self.struct_format = struct_format
-        self.endianness = endianness
-        self.struct = None
-
-        # No Variable length in struct_format. Save the struct for better preformance
-        if "%" not in self.struct_format:
-            self.struct = struct.Struct(self.endianness + self.struct_format)
-
-    def to_bin(self, value, length=0):
-        if self.struct is not None:
-            return self.struct.pack(value)
-        else:
-            fmt = self.struct_format % length
-            return struct.pack(self.endianness + fmt, value)
-
-    def from_bin(self, buf, length=0):
-        if self.struct is not None:
-            return self.struct.unpack_from(buf)
-        else:
-            fmt = self.struct_format % length
-            return struct.unpack_from(self.endianness + fmt, buf)
-
-    def has_variable_size(self):
-        if self.size == 0:
-            return True
-        else:
-            return False
-
-
-class SensorParameter():
-
-    def __init__(self, uid=0, name="", datatype=None):
-        self.uid = uid
-        self.name = name
-        self.datatype = datatype
-
-    def has_variable_size(self):
-        return self.datatype.has_variable_size()
-
-
-class SensorFunction():
-
-    def __init__(self, uid=0, name="", args_datatypes=None, ret_datatype=None):
-        self.uid = uid
-        self.name = name
-
-        if args_datatypes is None:
-            self.args_datatypes = []
-        else:
-            self.args_datatypes = args_datatypes
-
-        self.ret_datatype = ret_datatype
-
-    def num_of_args(self):
-        return len(self.args_datatypes)
-
-
-class SensorConnector():
-
-    def __init__(self, uid, name="", paramsIDs=None, params=None, funcsIDs=None, funcs=None):
-        self.uid = uid
-        self.name = name
-
-        if paramsIDs is None:
-            self.paramsIDs = {}
-        else:
-            self.paramsIDs = paramsIDs
-        if params is None:
-            self.params = []
-        else:
-            self.params = params
-           
-        if funcsIDs is None:
-            self.funcsIDs = {}
-        else:
-            self.funcsIDs = funcsIDs
-        if funcs is None:
-            self.funcs = []
-        else:
-            self.funcs = funcs
-
-    def add_parameter(self, param):
-        if param.name in self.paramsIDs:
-            return False
-        self.paramsIDs[param.name] = param.uid
-        self.params[param.uid] = param
-        return True
-
-    def num_of_parameters(self):
-        return len(self.params)
-
-    def get_parameter_uid(self, name):
-        return self.paramsIDs[name]
-
-    def get_parameter(self, name):
-        return self.params[self.paramsIDs[name]]
-        
-    def add_function(self, func):
-        if func.name in self.funcsIDs:
-            return False
-        self.funcsIDs[func.name] = func.uid
-        self.funcs[func.uid] = func
-        return True
-
-    def num_of_functions(self):
-        return len(self.funcs)
-
-    def get_function_uid(self, name):
-        return self.funcsIDs[name]
-
-    def get_function(self, name):
-        return self.funcs[self.funcsIDs[name]]
 
 
 def ConfigSectionMap(config, section):
@@ -249,87 +78,25 @@ class SensorNodeFactory():
             else:
                 self.log.info('Skipping interface %s', interface)
 
-    def configure_datatypes(self, datatype_config):
-        for node_type in datatype_config.keys():
-            try:
-                file_rp = open(datatype_config[node_type], 'rt')
-                reader = csv.DictReader(file_rp)
-                datatype_defs = []
-                for row in reader:
-                    r_def = {
-                        'unique_id': row["unique_id"],
-                        'unique_name': row["unique_name"],
-                        'size': row["size"],
-                        'format': row["format"],
-                        'endianness': row["endianness"]
-                    }
-                    datatype_defs.append(r_def)
+    def configure_datatypes(self, config_file):
+        """
+        Configure the datatypes for a specific node_type
+        """
 
-                for interface in self.__nodes.keys():
-                    self.__nodes[interface].register_datatypes(datatype_defs)
+    def configure_connectors(self, config_file):
+        """
+        Configure the connectors for a specific node_type
+        """
 
-            except Exception as e:
-                self.log.fatal("Could not read datatypes for %s, from %s error: %s" % (node_type, datatype_config[node_type], e))
+    def configure_parameters(self, config_file):
+        """
+        Configure the parameters for a specific connector
+        """
 
-    def configure_connectors(self, connector_config):
-        for node_type in connector_config.keys():
-            try:
-                file_rp = open(connector_config[node_type], 'rt')
-                reader = csv.DictReader(file_rp)
-                con_defs = []
-                for row in reader:
-                    r_def = {
-                        'unique_id': row["unique_id"],
-                        'unique_name': row["unique_name"],
-                    }
-                    con_defs.append(r_def)
-
-                for interface in self.__nodes.keys():
-                    self.__nodes[interface].register_datatypes(con_defs)
-
-            except Exception as e:
-                self.log.fatal("Could not read datatypes for %s, from %s error: %s" % (node_type, connector_config[node_type], e))
-
-    def configure_parameters(self, parameter_config):
-        for connector_module in parameter_config.keys():
-            try:
-                file_rp = open(parameter_config[connector_module], 'rt')
-                reader = csv.DictReader(file_rp)
-                param_defs = []
-                for row in reader:
-                    r_def = {
-                        'unique_id': row["unique_id"],
-                        'unique_name': row["unique_name"],
-                        'datatype': row["datatype"],
-                    }
-                    param_defs.append(r_def)
-
-                for interface in self.__nodes.keys():
-                    self.__nodes[interface].register_parameters(connector_module, param_defs)
-
-            except Exception as e:
-                self.log.fatal("Could not read parameters for %s, from %s error: %s" % (connector_module, parameter_config[connector_module], e))
-
-    def configure_functions(self, function_config):
-        for connector_module in function_config.keys():
-            try:
-                file_rp = open(function_config[connector_module], 'rt')
-                reader = csv.DictReader(file_rp)
-                func_defs = []
-                for row in reader:
-                    r_def = {
-                        'unique_id': row["unique_id"],
-                        'unique_name': row["unique_name"],
-                        'args_datatypes': row["args_datatypes"],
-                        'ret_datatype': row["ret_datatype"],
-                    }
-                    func_defs.append(r_def)
-
-                for interface in self.__nodes.keys():
-                    self.__nodes[interface].register_parameters(connector_module, func_defs)
-
-            except Exception as e:
-                self.log.fatal("Could not read parameters for %s, from %s error: %s" % (connector_module, function_config[connector_module], e))
+    def configure_functions(self, config_file):
+        """
+        Configure the functions for a specific connector
+        """
 
     def get_nodes(self):
         return self.__nodes

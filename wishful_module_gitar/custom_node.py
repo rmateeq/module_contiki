@@ -6,7 +6,7 @@ import binascii
 from wishful_module_gitar.lib_gitar import SensorNode
 from communication_wrappers.lib_serial import *
 
-class CustomNode(SensorNode):
+class CustomNode():
 
     def __init__(self, mac_addr, ip_addr, interface, serial_wrapper, auto_config=False):
         mod_name = 'ContikiNode.' + interface
