@@ -8,6 +8,7 @@ import ctypes
 import binascii
 import traceback
 import sys
+import io
 
 class SerialdumpWrapper(SerialWrapper):
 
@@ -16,10 +17,12 @@ class SerialdumpWrapper(SerialWrapper):
         self.__interface = interface
         self.__serial_dev = serial_dev
         if socket.gethostname().find("wilab2") == -1:
-            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux','-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux','-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)#, universal_newlines=True)
         else:
             self.serialdump_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux',
-                                                        '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                                                        '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)#, universal_newlines=True)
+        self.stdin = io.TextIOWrapper(self.serialdump_process.stdin, encoding='utf-8', errors='ignore', line_buffering=True)
+        self.stdout = io.TextIOWrapper(self.serialdump_process.stdout, encoding='utf-8', errors='ignore', line_buffering=True)
         self.__rx_thread = None
         self.__rx_callback = None
         self.__thread_stop = None
@@ -51,12 +54,12 @@ class SerialdumpWrapper(SerialWrapper):
         msg.append(0x0a)
         #self.log.info("full encoded line %s%s",bytearray(serial_hdr).decode(), binascii.b2a_base64(payload))
         # self.print_byte_array(msg)
-        self.serialdump_process.stdin.write(msg.decode(encoding="utf-8", errors="ignore"))
-        self.serialdump_process.stdin.flush()
+        self.stdin.write(msg.decode(encoding="utf-8", errors="ignore"))
+        #self.stdin.flush()
 
     def __serial_listen(self, rx_callback, stop_event):
         while not stop_event.is_set():
-            line = self.serialdump_process.stdout.readline().strip()
+            line = self.stdout.readline().strip()
             if line != '':
                 if line[2:ctypes.sizeof(SerialHeader)] == 'FFFFFFFF':
                     try:
