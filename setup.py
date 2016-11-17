@@ -15,5 +15,5 @@ setup(
 	description='WiSHFUL Contiki Module',
 	long_description='Implementation of a Contiki agent using the unified programming interfaces (UPIs) of the Wishful project.',
 	keywords='wireless control',
-	install_requires=['configparser',"enum34"]
+	install_requires=['configparser',"enum34","coapthon"]
 )
