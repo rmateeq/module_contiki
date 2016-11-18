@@ -242,7 +242,7 @@ class SensorConnector():
         return len(self.__measurements)
 
 
-class SenSorNode():
+class SensorNode():
 
     def __init__(self, uid=0, interface=""):
         self.log = logging.getLogger('SensorNode.' + interface)

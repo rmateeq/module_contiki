@@ -1,8 +1,8 @@
 import configparser as ConfigParser
 import logging
 import csv
-from wishful_module_gitar.contiki_node_custom import CustomNode
-from wishful_module_gitar.contiki_node_rpc import RPCNode
+from wishful_module_gitar.custom_node import CustomNode
+from wishful_module_gitar.rpc_node import RPCNode
 from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
 

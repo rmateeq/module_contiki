@@ -3,7 +3,7 @@ import logging
 import time
 import binascii
 
-from wishful_module_gitar.lib_gitar import SensorNode
+from wishful_module_gitar.lib_gitar_node import SensorNode
 from communication_wrappers.lib_serial import *
 
 class CustomNode():
