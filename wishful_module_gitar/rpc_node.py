@@ -95,8 +95,8 @@ class RPCDataType(SensorDataType):
 
 class RPCNode(SensorNode):
 
-    def __init__(self, uid=0, interface="", mac_addr="", ip_addr="", com_wrapper=None):
-        SensorNode.__init__(self, uid, interface)
+    def __init__(self, serial_dev, node_id=0, interface="", mac_addr="", ip_addr="", com_wrapper=None):
+        SensorNode.__init__(self, serial_dev, node_id, interface)
         self.mac_addr = mac_addr
         self.ip_addr = ip_addr
         self.com_wrapper = com_wrapper

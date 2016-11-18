@@ -17,14 +17,18 @@ class GitarEngine(wishful_module.AgentModule):
         self.log = logging.getLogger('GITAREngine.main')
         self.node_factory = SensorNodeFactory()
         self.node_factory.create_nodes(kwargs['GitarConfig'], kwargs['SupportedInterfaces'])
+        self.slip_processes = {}
+        self.create_control_net()
 
     def create_control_net(self):
-        for iface, node in self.node_factory.get_nodes.iteritems():
+        nodes = self.node_factory.get_nodes()
+        for iface in self.node_factory.get_nodes():
+            node = nodes[iface]
             node_id = node.node_id
             serial_dev = node.serial_dev
             control_prefix = "fdc" + str(node_id) + "::"
             control_tunslip_interface_id = "1"
             prefix_length = "/64"
             tunslip_ip_addr = control_prefix + control_tunslip_interface_id + prefix_length
-            slip_process = subprocess.Popen(['sudo', '../communication_wrappers/bin/tunslip6', '-C', '-s'+serial_dev, tunslip_ip_addr],stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            slip_process = subprocess.Popen(['../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-C', '-s'+serial_dev, tunslip_ip_addr],stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             self.slip_processes[iface] = slip_process

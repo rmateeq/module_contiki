@@ -249,9 +249,10 @@ class SensorConnector():
 
 class SensorNode():
 
-    def __init__(self, uid=0, interface=""):
+    def __init__(self, serial_dev, node_id=0, interface=""):
         self.log = logging.getLogger('SensorNode.' + interface)
-        self.uid = uid
+        self.serial_dev = serial_dev
+        self.node_id = node_id
         self.interface = interface
         self.__datatypesIDs = {}
         self.__datatypes = {}
@@ -465,6 +466,8 @@ class SensorNodeFactory():
                 mac_addr = config.get(interface, 'MacAddress')
                 ip_addr = config.get(interface, 'IpAddress')
 
+                serial_dev = config.get(interface, 'SerialDev')
+
                 # Create a com_wrapper instance
                 com_method = config.get(interface, 'CommunicationMethod')
                 com_wrapper = None
@@ -478,9 +481,10 @@ class SensorNodeFactory():
                 # Create a specific type of node
                 node_type = config.get(interface, 'NodeType')
                 if node_type == 'ContikiCustomNode':
-                    self.__nodes[interface] = CustomNode(mac_addr, ip_addr, interface, com_wrapper)
+                    self.__nodes[interface] = CustomNode(serial_dev, mac_addr, ip_addr, interface, com_wrapper)
                 elif node_type == 'ContikiRPCNode':
-                    self.__nodes[interface] = RPCNode(node_id, interface, mac_addr, ip_addr, com_wrapper)
+                    from .rpc_node import RPCNode
+                    self.__nodes[interface] = RPCNode(serial_dev, node_id, interface, mac_addr, ip_addr, com_wrapper)
                 else:
                     self.log.fatal('invalid NodeType')
 

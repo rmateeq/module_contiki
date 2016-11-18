@@ -9,7 +9,7 @@ from communication_wrappers.lib_serial import *
 
 class CustomNode():
 
-    def __init__(self, mac_addr, ip_addr, interface, serial_wrapper, auto_config=False):
+    def __init__(self, serial_dev, mac_addr, ip_addr, interface, serial_wrapper, auto_config=False):
         mod_name = 'ContikiNode.' + interface
         self.log = logging.getLogger(mod_name)
         self.mac_addr = mac_addr
