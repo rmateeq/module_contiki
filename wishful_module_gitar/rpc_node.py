@@ -1,7 +1,7 @@
 import errno
 import struct
 
-from wishful_module_gitar.lib_gitar_node import SensorNode, SensorDataType
+from wishful_module_gitar.lib_gitar import *
 
 
 class RPCFuncHdr():

@@ -1,10 +1,11 @@
 import errno
 import logging
 import time
-import binascii
+#import binascii
 
-from wishful_module_gitar.lib_gitar_node import SensorNode
+from wishful_module_gitar.lib_gitar import *
 from communication_wrappers.lib_serial import *
+
 
 class CustomNode():
 
