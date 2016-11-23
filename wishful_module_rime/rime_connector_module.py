@@ -1,56 +1,37 @@
 import wishful_upis as upis
 import wishful_framework as wishful_module
 from wishful_framework.classes import exceptions
-from wishful_framework.upi_arg_classes.net_classes import NetworkInfo #<----!!!!! Important to include it here; otherwise cannot be pickled!!!!
-from wishful_module_gitar.lib_gitar import SensorNode
-from wishful_module_gitar.lib_gitar import SensorNodeFactory
-
+from wishful_framework.upi_arg_classes.net_classes import NetworkInfo
+from wishful_module_gitar.lib_gitar import SensorNodeFactory, ProtocolConnector
 import logging
 import inspect
-
 import traceback
 import sys
+import crc16
+
 
 @wishful_module.build_module
 class RIMEConnector(wishful_module.AgentModule):
-    def __init__(self,**kwargs):
+
+    def __init__(self, **kwargs):
         super(RIMEConnector, self).__init__()
         self.log = logging.getLogger('RIMEConnector')
         self.node_factory = SensorNodeFactory()
-        #~ self.supported_interfaces = kwargs['SupportedInterfaces']
-        # rime_control_extensions = kwargs['ControlExtensions']
-        # self.params = []
-        # self.measurements = []
-        # self.events = []
-        # try:
-            # file_rp = open(rime_control_extensions,'rt')
-            # reader = csv.DictReader(file_rp)
-            # param_defs = []
-            # measurement_defs = []
-            # event_defs = []
-            # for row in reader:
-                # r_def = {'unique_name' : row["unique_name"], 'unique_id' : row["unique_id"], 'type_name' : row["type"], 'type_len' : row["length"], 'type_format' : row["struct_format"]}
-                # if row['category'] == "PARAMETER":
-                    # self.params.append(row["unique_name"])
-                    # param_defs.append(r_def)
-                # elif row['category'] == "MEASUREMENT":
-                    # self.measurements.append(row["unique_name"])
-                    # measurement_defs.append(r_def)
-                # elif row['category'] == "EVENT":
-                    # self.events.append(row["unique_name"])
-                    # event_defs.append(r_def)
-                # else:
-                    # self.log.info("Illegal parameter category: %s" % row['category'])
-            # 
-            # for iface in self.supported_interfaces:
-                # node = self.node_factory.get_node(iface)
-                # node.register_parameters(param_defs)
-                # node.register_measurements(measurement_defs)
-                # node.register_events(event_defs)
-            
-        # except Exception as e:
-            # self.log.fatal("An error occurred while initializing TAISC: %s" % e)
-        
+        self.supported_interfaces = kwargs['SupportedInterfaces']
+        self.protocol_attributes = kwargs['ControlAttributes']
+        self.protocol_functions = kwargs['ControlFunctions']
+        self.connector = ProtocolConnector(4, "RIME")
+        # self.connector = ProtocolConnector(crc16.crc16xmodem(str.encode("RIME")), "RIME")
+
+    @wishful_module.on_start()
+    def start_RIME_connector(self):
+        self.connector.parse_control_functions(self.protocol_functions)
+        self.connector.parse_control_attributes(self.protocol_attributes)
+        for iface in self.supported_interfaces:
+            node = self.node_factory.get_node(iface)
+            node.add_connector(self.connector)
+        pass
+
     @wishful_module.bind_function(upis.net.get_iface_ip_addr)
     def get_ipaddr(self):
         return self.node.ip_addr

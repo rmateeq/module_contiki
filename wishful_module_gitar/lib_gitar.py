@@ -5,34 +5,59 @@ import abc
 #from wishful_module_gitar.rpc_node import RPCNode
 from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
+import csv
+import struct
+
+
+SIMPLE_DATATYPE_NAMES = [
+    "BOOL",
+    "CHAR",
+    "UINT8",
+    "INT8",
+    "UINT16_LE",
+    "INT16_LE",
+    "UINT32_LE",
+    "INT32_LE",
+    "FLOAT32_LE",
+    "UINT64_LE",
+    "INT64_LE",
+    "UINT16_BE",
+    "INT16_BE",
+    "UINT32_BE",
+    "INT32_BE",
+    "FLOAT32_BE",
+    "UINT64_BE",
+    "INT64_BE"
+]
+
+SIMPLE_DATATYPES_FORMATS = ["?", "c", "B", "b", "<H", "<h", "<I", "<i", "<f", "<Q", "<q", ">H", ">h", ">I", ">i", ">f", ">Q", ">q"]
 
 
 class SensorDataType():
 
-    def __init__(self, uid=0, name="", size=0, endianness="<", fmt=""):
-        self.log = logging.getLogger('SensorDataType.' + name)
-        self.uid = uid
-        self.name = name
-        self.size = size
-        self.endianness = endianness
+    def __init__(self, endianness="", fmt=""):
         self.fmt = fmt
+        self.endianness = endianness
+        self.struct_fmt = struct.Struct(self.endianness + self.fmt)
+        self.size = self.struct_fmt.size
 
-    @abc.abstractmethod
-    def to_bytes(self, *args):
+    def to_bytes(self, *val):
         """
         Transform value(s) to bytes specified by datatype format
         """
-        pass
+        return self.struct_fmt.pack(*val)
 
-    @abc.abstractmethod
     def read_bytes(self, buf):
         """
         Read value(s) from a buffer. Returns a tuple according to the datatype format
         """
-        pass
+        tpl = self.struct_fmt.unpack(self.struct_fmt, buf)
+        if len(tpl) == 1:
+            tpl = tpl[0]
+        return tpl
 
 
-class Generic():
+class ControlAttribute():
 
     def __init__(self, uid=0, name="", datatype=None):
         self.log = logging.getLogger()
@@ -40,37 +65,35 @@ class Generic():
         self.name = name
         self.datatype = None
 
-        if isinstance(datatype, SensorDataType):
+        if datatype is not None and isinstance(datatype, SensorDataType):
             self.datatype = datatype
-        else:
-            self.log.fatal('invalid argument type')
 
     def set_datatype(self, datatype):
         if isinstance(datatype, SensorDataType):
             self.datatype = datatype
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type bla')
 
 
-class SensorParameter(Generic):
+class Parameter(ControlAttribute):
 
     def __init__(self, uid=0, name="", datatype=None):
-        Generic.__init__(self, uid, name, datatype)
+        ControlAttribute.__init__(self, uid, name, datatype)
         self.change_list = []
 
 
-class SensorEvent():
+class Event(ControlAttribute):
 
     def __init__(self, uid=0, name="", datatype=None):
-        Generic.__init__(self, uid, name, datatype)
+        ControlAttribute.__init__(self, uid, name, datatype)
         self.event_duration = 0
         self.subscriber_callbacks = []
 
 
-class SensorMeasurement():
+class Measurement(ControlAttribute):
 
     def __init__(self, uid=0, name="", datatype=None):
-        Generic.__init__(self, uid, name, datatype)
+        ControlAttribute.__init__(self, uid, name, datatype)
         self.is_periodic = False
         self.read_interval = 0
         self.report_interval = 0
@@ -78,42 +101,38 @@ class SensorMeasurement():
         self.report_callback = None
 
 
-class SensorFunction():
+class ControlFunction():
 
     def __init__(self, uid=0, name="", args_datatypes=None, ret_datatype=None):
         self.log = logging.getLogger()
         self.uid = uid
         self.name = name
         self.__args_datatypes = []
-        self.ret_datatype = None
+        self.__ret_datatype = None
 
-        if isinstance(args_datatypes, list) and all(isinstance(arg, SensorDataType) for arg in args_datatypes):
+        if args_datatypes is not None and isinstance(args_datatypes, list) and all(isinstance(arg, SensorDataType) for arg in args_datatypes):
             self.__args_datatypes = args_datatypes
-        else:
-            self.log.fatal('invalid argument type')
 
-        if isinstance(ret_datatype, SensorDataType):
+        if ret_datatype is not None and isinstance(ret_datatype, SensorDataType):
             self.__ret_datatype = ret_datatype
-        else:
-            self.log.fatal('invalid argument type')
 
     def append_arg_datatype(self, arg_datatype):
         if isinstance(arg_datatype, SensorDataType):
             self.__args_datatypes.append(arg_datatype)
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 2')
 
     def insert_arg_datatype(self, index, arg_datatype):
         if isinstance(arg_datatype, SensorDataType):
             self.__args_datatypes.insert(index, arg_datatype)
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 3')
 
     def set_args_datatypes(self, args_datatypes):
         if isinstance(args_datatypes, list) and all(isinstance(arg, SensorDataType) for arg in args_datatypes):
             self.__args_datatypes = args_datatypes
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 4')
 
     def get_args_datatypes(self):
         return self.__args_datatypes
@@ -128,13 +147,16 @@ class SensorFunction():
         if isinstance(ret_datatype, SensorDataType):
             self.__ret_datatype = ret_datatype
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 5')
+
+    def get_ret_datatype(self):
+        return self.__ret_datatype
 
 
-class SensorConnector():
+class ProtocolConnector():
 
     def __init__(self, uid=0, name=""):
-        self.log = logging.getLogger('SensorConnector.' + name)
+        self.log = logging.getLogger('ProtocolConnector.' + name)
         self.uid = uid
         self.name = name
         self.__paramsIDs = {}
@@ -147,7 +169,7 @@ class SensorConnector():
         self.__measurements = {}
 
     def add_parameter(self, param):
-        if isinstance(param, SensorParameter):
+        if isinstance(param, Parameter):
             if param.uid not in self.__paramsIDs and param.name not in self.__params:
                 self.__paramsIDs[param.uid] = param
                 self.__params[param.name] = param
@@ -156,7 +178,7 @@ class SensorConnector():
                 self.log.info('already contains parameter %s with uid:%d', param.name, param.uid)
                 return False
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 6')
             return False
 
     def get_parameter(self, key):
@@ -165,14 +187,14 @@ class SensorConnector():
         elif isinstance(key, int):
             return self.__paramsIDs.get(key)
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 7')
             return None
 
     def num_of_parameters(self):
         return len(self.__params)
 
     def add_function(self, func):
-        if isinstance(func, SensorFunction):
+        if isinstance(func, ControlFunction):
             if func.uid not in self.__funcsIDs and func.name not in self.__funcs:
                 self.__funcsIDs[func.uid] = func
                 self.__funcs[func.name] = func
@@ -181,7 +203,7 @@ class SensorConnector():
                 self.log.info('already contains function %s with uid:%d', func.name, func.uid)
                 return False
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 8')
             return False
 
     def get_function(self, key):
@@ -190,14 +212,14 @@ class SensorConnector():
         elif isinstance(key, int):
             return self.__funcsIDs.get(key)
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 9')
             return None
 
     def num_of_functions(self):
         return len(self.__funcs)
 
     def add_event(self, event):
-        if isinstance(event, SensorEvent):
+        if isinstance(event, Event):
             if event.uid not in self.__eventsIDs and event.name not in self.__events:
                 self.__eventsIDs[event.uid] = event
                 self.__events[event.name] = event
@@ -206,7 +228,7 @@ class SensorConnector():
                 self.log.info('already contains event %s with uid:%d', event.name, event.uid)
                 return False
         else:
-            self.log.fatal('invalid argument type')
+            self.log.fatal('invalid argument type 10')
             return False
 
     def get_event(self, key):
@@ -222,7 +244,7 @@ class SensorConnector():
         return len(self.__events)
 
     def add_measurement(self, measurement):
-        if isinstance(measurement, SensorMeasurement):
+        if isinstance(measurement, Measurement):
             if measurement.uid not in self.__measurementsIDs and measurement.name not in self.__measurements:
                 self.__measurementsIDs[measurement.uid] = measurement
                 self.__measurements[measurement.name] = measurement
@@ -246,8 +268,90 @@ class SensorConnector():
     def num_of_measurements(self):
         return len(self.__measurements)
 
+    def __create_control_attribute(self, uid, uname, category):
+        if category == "PARAMETER":
+            return Parameter(uid, uname)
+        elif category == "MEASUREMENT":
+            return Measurement(uid, uname)
+        elif category == "EVENT":
+            return Event(uid, uname)
+        else:
+            return None
+
+    def __add_control_attribute(self, ctrl_attr, category):
+        if category == "PARAMETER":
+            self.add_parameter(ctrl_attr)
+        elif category == "MEASUREMENT":
+            self.add_measurement(ctrl_attr)
+        elif category == "EVENT":
+            self.add_event(ctrl_attr)
+        pass
+
+    def parse_control_attributes(self, csv_filename):
+        if csv_filename != '':
+            try:
+                file_rp = open(csv_filename, 'rt')
+                attributes = csv.DictReader(file_rp)
+                for attribute_def in attributes:
+                    ctrl_attr = self.__create_control_attribute(int(attribute_def["unique_id"]), attribute_def["unique_name"], attribute_def["category"])
+                    if attribute_def["format"] in SensorNode.SIMPLE_DATATYPES:
+                        ctrl_attr.set_datatype(SensorNode.SIMPLE_DATATYPES[attribute_def["format"]])
+                    else:
+                        ctrl_attr.set_datatype(SensorDataType(attribute_def["endianness"], attribute_def["format"]))
+                    if ctrl_attr is not None:
+                        self.__add_control_attribute(ctrl_attr, attribute_def["category"])
+            except Exception as e:
+                self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
+
+    def parse_control_functions(self, csv_filename):
+        if csv_filename != '':
+            try:
+                file_rp = open(csv_filename, 'rt')
+                functions = csv.DictReader(file_rp)
+                for function_def in functions:
+                    ctrl_fnct = ControlFunction(int(function_def["unique_id"]), function_def["unique_name"])
+                    fnct_fmt = function_def["format"]
+                    if fnct_fmt != "":
+                        ret_type = fnct_fmt.split(":")[0]
+                        if ret_type in SensorNode.SIMPLE_DATATYPES:
+                            ctrl_fnct.set_ret_datatype(SensorNode.SIMPLE_DATATYPES[ret_type])
+                        else:
+                            ctrl_fnct.set_ret_datatype(SensorDataType(function_def["endianness"], fnct_fmt))
+                        for arg_type in fnct_fmt.split(":")[1].split(";"):
+                            if arg_type in SensorNode.SIMPLE_DATATYPES:
+                                ctrl_fnct.append_arg_datatype(SensorNode.SIMPLE_DATATYPES[arg_type])
+                            else:
+                                ctrl_fnct.append_arg_datatype(SensorDataType(function_def["endianness"], fnct_fmt))
+                    self.add_function(ctrl_fnct)
+            except Exception as e:
+                self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
+
+
 
 class SensorNode():
+
+    SIMPLE_DATATYPES = {
+        "VOID": SensorDataType("", ""),
+        "BOOL": SensorDataType("", "?"),
+        "CHAR": SensorDataType("", "c"),
+        "UINT8": SensorDataType("", "B"),
+        "INT8": SensorDataType("", "b"),
+        "UINT16_LE": SensorDataType("<", "H"),
+        "INT16_LE": SensorDataType("<", "h"),
+        "UINT32_LE": SensorDataType("<", "I"),
+        "INT32_LE": SensorDataType("<", "i"),
+        "FLOAT32_LE": SensorDataType("<", "f"),
+        "UINT64_LE": SensorDataType("<", "Q"),
+        "INT64_LE": SensorDataType("<", "q"),
+        "UINT16_BE": SensorDataType(">", "H"),
+        "INT16_BE": SensorDataType(">", "h"),
+        "UINT32_BE": SensorDataType(">", "I"),
+        "INT32_BE": SensorDataType(">", "i"),
+        "FLOAT32_BE": SensorDataType(">", "f"),
+        "UINT64_BE": SensorDataType(">", "Q"),
+        "INT64_BE": SensorDataType(">", "q"),
+        "OPAQUE": SensorDataType("", "")
+    }
 
     def __init__(self, serial_dev, node_id=0, interface=""):
         self.log = logging.getLogger('SensorNode.' + interface)
@@ -256,6 +360,17 @@ class SensorNode():
         self.interface = interface
         self.__datatypesIDs = {}
         self.__datatypes = {}
+        # for i in range(0, len(SIMPLE_DATATYPES_FORMATS)):
+        #     name = SIMPLE_DATATYPE_NAMES[i]
+        #     fmt = SIMPLE_DATATYPES_FORMATS[i]
+        #     size = struct.calcsize(fmt)
+        #     end = ""
+        #     if size > 1:
+        #         end = fmt[0]
+        #         fmt = fmt[1]
+        #     dt = SensorDataType(i, name, size, end, fmt)
+        #     self.__datatypesIDs[i] = dt
+        #     self.__datatypes[name] = dt
         self.__connectorsIDs = {}
         self.__connectors = {}
 
@@ -285,7 +400,7 @@ class SensorNode():
             return len(self.__datatypes)
 
     def add_connector(self, connector):
-        if isinstance(connector, SensorConnector):
+        if isinstance(connector, ProtocolConnector):
             if connector.uid not in self.__connectorsIDs and connector.name not in self.__connectors:
                 self.__connectorsIDs[connector.uid] = connector
                 self.__connectors[connector.name] = connector
@@ -305,6 +420,9 @@ class SensorNode():
         else:
             self.log.fatal('invalid argument type')
             return None
+
+    def get_connector_ids(self):
+        return self.__connectorsIDs.keys()
 
     def num_of_connectors(self):
             return len(self.__connectors)
@@ -465,22 +583,22 @@ class SensorNodeFactory():
                 node_id = int(config.get(interface, 'NodeID'))
                 mac_addr = config.get(interface, 'MacAddress')
                 ip_addr = config.get(interface, 'IpAddress')
-
                 serial_dev = config.get(interface, 'SerialDev')
 
                 # Create a com_wrapper instance
                 com_method = config.get(interface, 'CommunicationMethod')
                 com_wrapper = None
                 if com_method == 'ContikiSerialdump':
-                    com_wrapper = SerialdumpWrapper(config.get(interface, 'SerialDev'), interface)
+                    com_wrapper = SerialdumpWrapper(serial_dev, interface)
                 elif com_method == 'CoAP':
-                    com_wrapper = CoAPWrapper(ip_addr)
+                    com_wrapper = CoAPWrapper(ip_addr, node_id, serial_dev)
                 else:
                     self.log.fatal('invalid CommunicationMethod')
 
                 # Create a specific type of node
                 node_type = config.get(interface, 'NodeType')
                 if node_type == 'ContikiCustomNode':
+                    from .custom_node import CustomNode
                     self.__nodes[interface] = CustomNode(serial_dev, mac_addr, ip_addr, interface, com_wrapper)
                 elif node_type == 'ContikiRPCNode':
                     from .rpc_node import RPCNode

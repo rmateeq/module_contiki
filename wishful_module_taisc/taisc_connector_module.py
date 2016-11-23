@@ -5,8 +5,7 @@ from wishful_framework.classes import exceptions
 from wishful_framework.upi_arg_classes.radio_info import RadioInfo
 # <----!!!!! Important to include it here; otherwise cannot be pickled!!!!
 from wishful_framework.upi_arg_classes.radio_info import RadioPlatform
-from wishful_module_gitar.lib_gitar import SensorNode
-from wishful_module_gitar.lib_gitar import SensorNodeFactory
+from wishful_module_gitar.lib_gitar import SensorNodeFactory, ProtocolConnector
 
 import logging
 import inspect
@@ -15,6 +14,7 @@ import time
 
 import traceback
 import sys
+import crc16
 
 
 @wishful_module.build_module
@@ -29,14 +29,43 @@ class TAISCConnector(wishful_module.AgentModule):
         for rp_name in self.radio_programs.keys():
             self.radio_program_names[self.radio_programs[rp_name]] = rp_name
         self.supported_interfaces = kwargs['SupportedInterfaces']
+        self.protocol_attributes = kwargs['ControlAttributes']
+        self.protocol_functions = kwargs['ControlFunctions']
+        self.connector = ProtocolConnector(2, "TAISC")
+        # self.connector = ProtocolConnector(crc16.crc16xmodem(str.encode("TAISC")), "TAISC")
+
+    @wishful_module.on_start()
+    def start_TAISC_connector(self):
+        self.connector.parse_control_functions(self.protocol_functions)
+        self.connector.parse_control_attributes(self.protocol_attributes)
+        for iface in self.supported_interfaces:
+            node = self.node_factory.get_node(iface)
+            node.add_connector(self.connector)
+        pass
+
+    @wishful_module.on_exit()
+    def stop_TAISC_connector(self):
+        return
+
+    @wishful_module.on_connected()
+    def TAISC_connector_connected(self):
+        return
+
+    @wishful_module.on_disconnected()
+    def TAISC_connector_disconnected(self):
+        return
+
+    @wishful_module.on_first_call_to_module()
+    def TAISC_connector_first_call(self):
+        return
 
     @wishful_module.bind_function(upis.radio.set_parameters)
     def set_radio_parameter(self, param_key_values_dict):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
             try:
-                return node.write_parameters('taisc', param_key_values_dict)
-            except Exception as err:
+                return node.write_attributes('TAISC', param_key_values_dict)
+            except Exception:
                 traceback.print_exc(file=sys.stdout)
         else:
             fname = inspect.currentframe().f_code.co_name
@@ -49,7 +78,10 @@ class TAISCConnector(wishful_module.AgentModule):
     def get_radio_parameters(self, param_key_list):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.read_parameters('taisc', param_key_list)
+            try:
+                return node.read_attributes('TAISC', param_key_list)
+            except Exception:
+                traceback.print_exc(file=sys.stdout)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -61,7 +93,7 @@ class TAISCConnector(wishful_module.AgentModule):
     def get_radio_measurements(self, measurement_key_list):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.read_measurements('taisc', measurement_key_list)
+            return node.read_measurements('TAISC', measurement_key_list)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -77,7 +109,7 @@ class TAISCConnector(wishful_module.AgentModule):
                 measurement_report[key] = []
             for i in xrange(0, num_collects_report):
                 time.sleep(collect_period)
-                ret = node.read_measurements('taisc', measurement_keys)
+                ret = node.read_measurements('TAISC', measurement_keys)
                 for key in ret.keys():
                     measurement_report[key].append(ret[key])
             report_callback(node.interface, measurement_report)
@@ -100,7 +132,7 @@ class TAISCConnector(wishful_module.AgentModule):
     def define_radio_event(self, event_key_list, event_callback, event_duration):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return node.add_events_subscriber('taisc', event_key_list, event_callback, event_duration)
+            return node.add_events_subscriber('TAISC', event_key_list, event_callback, event_duration)
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %
@@ -115,7 +147,7 @@ class TAISCConnector(wishful_module.AgentModule):
             param_key_values["TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs[name]
             node = self.node_factory.get_node(self.interface)
             if node is not None:
-                ret = node.write_parameters('taisc', param_key_values)
+                ret = node.write_attributes('TAISC', param_key_values)
                 if type(ret) == dict:
                     return ret["TAISC_ACTIVERADIOPROGRAM"]
                 else:
@@ -144,7 +176,7 @@ class TAISCConnector(wishful_module.AgentModule):
                 "TAISC_ACTIVERADIOPROGRAM"] = self.radio_programs['CSMA']
             node = self.node_factory.get_node(self.interface)
             if node is not None:
-                ret = node.write_parameters('taisc', param_key_values)
+                ret = node.write_attributes('TAISC', param_key_values)
                 if type(ret) == dict:
                     return ret["TAISC_ACTIVERADIOPROGRAM"]
                 else:
@@ -171,7 +203,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = ["TAISC_ACTIVERADIOPROGRAM"]
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.read_parameters('taisc', param_keys)
+            ret = node.read_attributes('TAISC', param_keys)
             if type(ret) == dict:
                 return self.radio_program_names[ret["TAISC_ACTIVERADIOPROGRAM"]]
             else:
@@ -194,7 +226,7 @@ class TAISCConnector(wishful_module.AgentModule):
         node = self.node_factory.get_node(self.interface)
         self.log.info("get_hw_addr")
         if node is not None:
-            ret = node.read_parameters('taisc', param_keys)
+            ret = node.read_attributes('TAISC', param_keys)
             if type(ret) == dict:
                 return ret["IEEE802154_macShortAddress"]
             else:
@@ -216,7 +248,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_key_values['IEEE802154_phyTXPower'] = power_dBm
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.write_parameters('taisc', param_key_values)
+            ret = node.write_attributes('TAISC', param_key_values)
             if type(ret) == dict:
                 return ret["IEEE802154_phyTXPower"]
             else:
@@ -238,7 +270,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = ["IEEE802154_phyTXPower"]
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.read_parameters('taisc', param_keys)
+            ret = node.read_attributes('TAISC', param_keys)
             if type(ret) == dict:
                 return ret["IEEE802154_phyTXPower"]
             else:
@@ -260,7 +292,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_key_values['IEEE802154_phyCurrentChannel'] = freq_Hz
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.write_parameters('taisc', param_key_values)
+            ret = node.write_attributes('TAISC', param_key_values)
             self.log.info(ret)
             if type(ret) == dict:
                 return ret["IEEE802154_phyCurrentChannel"]
@@ -283,7 +315,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = ["IEEE802154_phyCurrentChannel"]
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.read_parameters('taisc', param_keys)
+            ret = node.read_attributes('TAISC', param_keys)
             self.log.info(ret)
             if type(ret) == dict:
                 return ret["IEEE802154_phyCurrentChannel"]
@@ -306,7 +338,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_key_values['IEEE802154_phyCurrentChannel'] = freq_Hz
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.write_parameters('taisc', param_key_values)
+            ret = node.write_attributes('TAISC', param_key_values)
             if type(ret) == dict:
                 return ret["IEEE802154_phyCurrentChannel"]
             else:
@@ -328,7 +360,7 @@ class TAISCConnector(wishful_module.AgentModule):
         param_keys = ["IEEE802154_phyCurrentChannel"]
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            ret = node.read_parameters('taisc', param_keys)
+            ret = node.read_attributes('TAISC', param_keys)
             if type(ret) == dict:
                 return ret["IEEE802154_phyCurrentChannel"]
             else:
@@ -348,7 +380,7 @@ class TAISCConnector(wishful_module.AgentModule):
     def get_radio_info(self):
         node = self.node_factory.get_node(self.interface)
         if node is not None:
-            return RadioInfo(node.mac_addr, node.params_name_dct['taisc'].keys(), node.measurements_name_dct['taisc'].keys(), node.events_name_dct['taisc'].keys(), self.radio_programs.keys())
+            return RadioInfo(node.mac_addr, node.params_name_dct['TAISC'].keys(), node.measurements_name_dct['TAISC'].keys(), node.events_name_dct['TAISC'].keys(), self.radio_programs.keys())
         else:
             fname = inspect.currentframe().f_code.co_name
             self.log.fatal("%s Interface %s does not exist!" %

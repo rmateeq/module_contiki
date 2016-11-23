@@ -20,7 +20,7 @@ class RPCFuncHdr():
         return "(C:%s,F:%s,NoA:%d)" % (self.con_uid, self.func_uid, self.num_of_args)
 
     def to_bytes(self):
-        return RPCFuncHdr.fmt_func_header.pack(self.con_uid, self.func_uid, self.num_of_args)
+        return RPCFuncHdr.fmt.pack(self.con_uid, self.func_uid, self.num_of_args)
 
 
 def read_RPCFuncHdr(message):
@@ -101,18 +101,18 @@ class RPCNode(SensorNode):
         self.ip_addr = ip_addr
         self.com_wrapper = com_wrapper
 
-    def write_parameters(self, connector, param_key_values):
+    def write_attributes(self, connector, param_key_values):
         c = self.get_connector(connector)
         if c is not None:
-            f = c.get_function('SETPARAMETER')
+            f = self.get_connector("GITAR").get_function('WRITE_ATTRIBUTE')
             if f is not None:
                 request_message = bytearray()
                 req_keys = []
                 for key, value in param_key_values:
                     p = c.get_parameter(key)
                     if p is not None:
-                        request_message.extend(RPCFuncHdr(c.uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(self.get_datatype('UINT16').to_bytes(p.uid))
+                        request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
+                        request_message.extend(SensorNode.SIMPLE_DATATYPES['UINT16_LE'].to_bytes(p.uid))
                         if p.datatype.has_variable_size():
                             # ToDO work on variable size by writing first byte
                             pass
@@ -133,14 +133,14 @@ class RPCNode(SensorNode):
                     i += 1
                 return resp_key_values
             else:
-                self.log.fatal('SETPARAMETER function not found')
+                self.log.fatal('SET_ATTRIBUTE function not found')
         else:
             self.log.info('connector %s not found', connector)
 
-    def read_parameters(self, connector, param_keys):
+    def read_attributes(self, connector, param_keys):
         c = self.get_connector(connector)
         if c is not None:
-            f = c.get_function('GETPARAMETER')
+            f = self.get_connector("GITAR").get_function('READ_ATTRIBUTE')
             if f is not None:
                 request_message = bytearray()
                 req_keys = []
@@ -148,8 +148,8 @@ class RPCNode(SensorNode):
                 for key in param_keys:
                     p = c.get_parameter(key)
                     if p is not None:
-                        request_message.extend(RPCFuncHdr(c.uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(self.get_datatype('UINT16').to_bytes(p.uid))
+                        request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
+                        request_message.extend(SensorNode.SIMPLE_DATATYPES['UINT16_LE'].to_bytes(p.uid))
                         req_keys.append(key)
                         req_params.append(p)
                     else:
@@ -173,11 +173,11 @@ class RPCNode(SensorNode):
                     i += 1
                 return resp_key_values
             else:
-                self.log.fatal('SETPARAMETER function not found')
+                self.log.fatal('READ_ATTRIBUTE function not found')
         else:
             self.log.info('connector %s not found', connector)
 
-    def add_events_subscriber(self, connector, event_keys, event_callback, event_duration):
+    def add_attributes_subscriber(self, connector, event_keys, event_callback, event_duration):
         pass
 
     def reset(self):
@@ -185,3 +185,29 @@ class RPCNode(SensorNode):
 
     def __str__(self):
         return "ContikiNode " + self.interface
+
+    def forward_rpc(self, connector, fname, fargs):
+        c = self.get_connector(connector)
+        if c is not None:
+            f = c.get_function(fname)
+            if f is not None and len(f.get_args_datatypes()) == len(fargs):
+                request_message = bytearray()
+                request_message.extend(RPCFuncHdr(c.uid, f.uid, f.num_of_args()).to_bytes())
+                for i in range(0, len(fargs)):
+                    request_message.extend(f.get_args_datatypes()[i].to_bytes(fargs[i]))
+                response_message = self.com_wrapper.send(request_message)
+                ret_hdr = read_RPCRetHdr(response_message)
+                if ret_hdr.ret_code == 0:
+                    if f.get_ret_datatype() is not None:
+                        return f.get_ret_datatype().read_bytes(response_message[len(ret_hdr):])
+
+    def execute_rpc(self, connector_uid, function_uid, function_def, num_args, args):
+        request_message = bytearray()
+        request_message.extend(RPCFuncHdr(connector_uid, function_uid, num_args).to_bytes())
+        for i in range(0, len(args)):
+            request_message.extend(function_def['args'][i].to_bytes(args[i]))
+        response_message = self.com_wrapper.send(request_message)
+        ret_hdr = read_RPCRetHdr(response_message)
+        if ret_hdr.ret_code == 0:
+            if function_def['ret'] is not None:
+                return function_def['ret'].read_bytes(response_message[len(ret_hdr):])
