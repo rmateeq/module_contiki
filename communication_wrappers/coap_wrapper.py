@@ -27,7 +27,7 @@ class CoAPWrapper(CommunicationWrapper):
         self.__response = None
 
     @asyncio.coroutine
-    def coap_send(payload):
+    def coap_send(self, payload):
         context = yield from aiocoap.Context.create_client_context()
         request = aiocoap.Message(code=aiocoap.POST, payload=payload)
         request.set_request_uri('coap://[' + self.control_prefix + '2]/wishful_funcs')
@@ -37,7 +37,7 @@ class CoAPWrapper(CommunicationWrapper):
 
     def send(self, payload):
         if True:
-            asyncio.get_event_loop().run_until_complete(coap_send(payload))
+            asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
             return self.__response
         else:
             client = HelperClient(server=(self.control_prefix + "2", 5683))

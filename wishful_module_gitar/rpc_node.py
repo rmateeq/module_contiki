@@ -112,7 +112,7 @@ class RPCNode(SensorNode):
                     p = c.get_parameter(key)
                     if p is not None:
                         request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(SensorNode.SIMPLE_DATATYPES['UINT16_LE'].to_bytes(p.uid))
+                        request_message.extend(SensorDataType("<", SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT['UINT16']).to_bytes(p.uid))
                         if p.datatype.has_variable_size():
                             # ToDO work on variable size by writing first byte
                             pass
@@ -149,7 +149,7 @@ class RPCNode(SensorNode):
                     p = c.get_parameter(key)
                     if p is not None:
                         request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(SensorNode.SIMPLE_DATATYPES['UINT16_LE'].to_bytes(p.uid))
+                        request_message.extend(SensorDataType("<", SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT['UINT16']).to_bytes(p.uid))
                         req_keys.append(key)
                         req_params.append(p)
                     else:
@@ -160,6 +160,7 @@ class RPCNode(SensorNode):
                 resp_key_values = dict.fromkeys(req_keys)
                 line_ptr = 0
                 i = 0
+                print(response_message)
                 while line_ptr < len(response_message) or i < len(req_keys):
                     ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
                     line_ptr += len(ret_hdr)
@@ -169,7 +170,7 @@ class RPCNode(SensorNode):
                             pass
                         else:
                             resp_key_values[req_keys[i]] = req_params[i].datatype.read_bytes(response_message[line_ptr:])
-                            line_ptr += p.datatyp.size
+                            line_ptr += p.datatype.size
                     i += 1
                 return resp_key_values
             else:

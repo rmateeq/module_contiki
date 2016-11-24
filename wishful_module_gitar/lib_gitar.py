@@ -7,6 +7,7 @@ from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
 import csv
 import struct
+import sys
 
 
 SIMPLE_DATATYPE_NAMES = [
@@ -32,29 +33,62 @@ SIMPLE_DATATYPE_NAMES = [
 
 SIMPLE_DATATYPES_FORMATS = ["?", "c", "B", "b", "<H", "<h", "<I", "<i", "<f", "<Q", "<q", ">H", ">h", ">I", ">i", ">f", ">Q", ">q"]
 
+SIMPLE_DATATYPE_NAMES_TO_FORMAT = {
+    "BOOL": "?",
+    "CHAR": "c",
+    "UINT8": "B",
+    "INT8": "b",
+    "UINT16": "H",
+    "INT16": "h",
+    "UINT32": "I",
+    "INT32": "i",
+    "FLOAT32": "f",
+    "UINT64": "Q",
+    "INT64": "q"
+}
+
 
 class SensorDataType():
 
+    to_string_byteorder = {'<': 'little', '>': 'big'}
+
     def __init__(self, endianness="", fmt=""):
         self.fmt = fmt
-        self.endianness = endianness
-        self.struct_fmt = struct.Struct(self.endianness + self.fmt)
-        self.size = self.struct_fmt.size
+        if endianness != "":
+            self.endianness = endianness
+        elif sys.byteorder == 'little':
+            self.endianness = '<'
+        else:
+            self.endianness = '>'
+
+        # self.struct_fmt = struct.Struct(self.endianness + self.fmt)
+        self.size = struct.calcsize(fmt)
 
     def to_bytes(self, *val):
         """
         Transform value(s) to bytes specified by datatype format
         """
-        return self.struct_fmt.pack(*val)
+        tmp_fmt = self.fmt
+        if SensorDataType.to_string_byteorder[self.endianness] != sys.byteorder:
+            tmp_fmt = self.endianness + self.fmt
+        return struct.pack(tmp_fmt, *val)
 
     def read_bytes(self, buf):
         """
         Read value(s) from a buffer. Returns a tuple according to the datatype format
         """
-        tpl = self.struct_fmt.unpack(self.struct_fmt, buf)
+        tmp_fmt = self.fmt
+        if SensorDataType.to_string_byteorder[self.endianness] != sys.byteorder:
+            tmp_fmt = self.endianness + self.fmt
+        tpl = struct.unpack(tmp_fmt, buf)
         if len(tpl) == 1:
             tpl = tpl[0]
         return tpl
+
+    def has_variable_size(self):
+        if self.size == 0:
+            return True
+        return False
 
 
 class ControlAttribute():
@@ -294,8 +328,8 @@ class ProtocolConnector():
                 attributes = csv.DictReader(file_rp)
                 for attribute_def in attributes:
                     ctrl_attr = self.__create_control_attribute(int(attribute_def["unique_id"]), attribute_def["unique_name"], attribute_def["category"])
-                    if attribute_def["format"] in SensorNode.SIMPLE_DATATYPES:
-                        ctrl_attr.set_datatype(SensorNode.SIMPLE_DATATYPES[attribute_def["format"]])
+                    if attribute_def["format"] in SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT:
+                        ctrl_attr.set_datatype(SensorDataType(attribute_def["endianness"], SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT[attribute_def["format"]]))
                     else:
                         ctrl_attr.set_datatype(SensorDataType(attribute_def["endianness"], attribute_def["format"]))
                     if ctrl_attr is not None:
@@ -313,13 +347,13 @@ class ProtocolConnector():
                     fnct_fmt = function_def["format"]
                     if fnct_fmt != "":
                         ret_type = fnct_fmt.split(":")[0]
-                        if ret_type in SensorNode.SIMPLE_DATATYPES:
-                            ctrl_fnct.set_ret_datatype(SensorNode.SIMPLE_DATATYPES[ret_type])
+                        if ret_type in SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT:
+                            ctrl_fnct.set_ret_datatype(SensorDataType(function_def["endianness"], SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT[ret_type]))
                         else:
                             ctrl_fnct.set_ret_datatype(SensorDataType(function_def["endianness"], fnct_fmt))
                         for arg_type in fnct_fmt.split(":")[1].split(";"):
-                            if arg_type in SensorNode.SIMPLE_DATATYPES:
-                                ctrl_fnct.append_arg_datatype(SensorNode.SIMPLE_DATATYPES[arg_type])
+                            if arg_type in SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT:
+                                ctrl_fnct.append_arg_datatype(SensorDataType(function_def["endianness"], SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT[arg_type]))
                             else:
                                 ctrl_fnct.append_arg_datatype(SensorDataType(function_def["endianness"], fnct_fmt))
                     self.add_function(ctrl_fnct)
@@ -327,30 +361,44 @@ class ProtocolConnector():
                 self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
 
 
-
 class SensorNode():
 
-    SIMPLE_DATATYPES = {
-        "VOID": SensorDataType("", ""),
-        "BOOL": SensorDataType("", "?"),
-        "CHAR": SensorDataType("", "c"),
-        "UINT8": SensorDataType("", "B"),
-        "INT8": SensorDataType("", "b"),
-        "UINT16_LE": SensorDataType("<", "H"),
-        "INT16_LE": SensorDataType("<", "h"),
-        "UINT32_LE": SensorDataType("<", "I"),
-        "INT32_LE": SensorDataType("<", "i"),
-        "FLOAT32_LE": SensorDataType("<", "f"),
-        "UINT64_LE": SensorDataType("<", "Q"),
-        "INT64_LE": SensorDataType("<", "q"),
-        "UINT16_BE": SensorDataType(">", "H"),
-        "INT16_BE": SensorDataType(">", "h"),
-        "UINT32_BE": SensorDataType(">", "I"),
-        "INT32_BE": SensorDataType(">", "i"),
-        "FLOAT32_BE": SensorDataType(">", "f"),
-        "UINT64_BE": SensorDataType(">", "Q"),
-        "INT64_BE": SensorDataType(">", "q"),
-        "OPAQUE": SensorDataType("", "")
+    # SIMPLE_DATATYPES = {
+    #     "VOID": SensorDataType("", ""),
+    #     "BOOL": SensorDataType("", "?"),
+    #     "CHAR": SensorDataType("", "c"),
+    #     "UINT8": SensorDataType("", "B"),
+    #     "INT8": SensorDataType("", "b"),
+    #     "UINT16_LE": SensorDataType("<", "H"),
+    #     "INT16_LE": SensorDataType("<", "h"),
+    #     "UINT32_LE": SensorDataType("<", "I"),
+    #     "INT32_LE": SensorDataType("<", "i"),
+    #     "FLOAT32_LE": SensorDataType("<", "f"),
+    #     "UINT64_LE": SensorDataType("<", "Q"),
+    #     "INT64_LE": SensorDataType("<", "q"),
+    #     "UINT16_BE": SensorDataType(">", "H"),
+    #     "INT16_BE": SensorDataType(">", "h"),
+    #     "UINT32_BE": SensorDataType(">", "I"),
+    #     "INT32_BE": SensorDataType(">", "i"),
+    #     "FLOAT32_BE": SensorDataType(">", "f"),
+    #     "UINT64_BE": SensorDataType(">", "Q"),
+    #     "INT64_BE": SensorDataType(">", "q"),
+    #     "OPAQUE": SensorDataType("", "")
+    # }
+    SIMPLE_DATATYPE_NAMES_TO_FORMAT = {
+        "BOOL": "?",
+        "CHAR": "c",
+        "UINT8": "B",
+        "INT8": "b",
+        "UINT16": "H",
+        "INT16": "h",
+        "UINT32": "I",
+        "INT32": "i",
+        "FLOAT32": "f",
+        "UINT64": "Q",
+        "INT64": "q",
+        "OPAQUE": "",
+        "VOID": ""
     }
 
     def __init__(self, serial_dev, node_id=0, interface=""):
