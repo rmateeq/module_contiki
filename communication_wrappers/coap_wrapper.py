@@ -1,5 +1,5 @@
 import logging
-from coapthon.client.helperclient import HelperClient
+#from coapthon.client.helperclient import HelperClient
 from communication_wrappers.lib_communication_wrapper import CommunicationWrapper
 import subprocess
 import threading
@@ -39,11 +39,11 @@ class CoAPWrapper(CommunicationWrapper):
         if True:
             asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
             return self.__response
-        else:
-            client = HelperClient(server=(self.control_prefix + "2", 5683))
-            response = client.post("wishful_funcs", payload)
-            client.stop()
-            return response.payload
+        # else:
+        #     client = HelperClient(server=(self.control_prefix + "2", 5683))
+        #     response = client.post("wishful_funcs", payload)
+        #     client.stop()
+        #     return response.payload
 
     def __serial_listen(self, stop_event):
         while not stop_event.is_set():
