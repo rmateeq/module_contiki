@@ -177,7 +177,7 @@ class SensorDataType():
         import numpy as np
         dt = np.dtype(self.np_format)
         if self.endianness != self.host_endianness:
-            dt = dt.newbyteorder(self.host_endianness)
+            dt = dt.newbyteorder(self.endianness)
         if self.type_name == "DYN_STRUCT_T":
             ret_tpl = np.frombuffer(np.ndarray(shape=(), dtype=dt, buffer=buf[0:dt.itemsize]), dt)[0]
             offset = dt.itemsize

@@ -16,10 +16,10 @@ class SerialdumpWrapper(SerialWrapper):
         self.__interface = interface
         self.__serial_dev = serial_dev
         if socket.gethostname().find("wilab2") == -1:
-            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux','-b115200', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            self.serialdump_process = subprocess.Popen(['../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux','-b230400', serial_dev], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         else:
             self.serialdump_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/serial_wrappers/bin/serialdump-linux',
-                                                        '-b115200', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                                                        '-b230400', '/dev/rm090'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.__rx_thread = None
         self.__rx_callback = None
         self.__thread_stop = None

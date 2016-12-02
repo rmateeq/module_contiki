@@ -287,7 +287,7 @@ int main(int argc, char **argv)
               exit(1);
             } else {
               fflush(NULL);
-			  usleep(1000);
+			  usleep(2000);
             }
           }
         }
