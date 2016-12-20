@@ -897,7 +897,20 @@ exit(1);
   ipaddr = argv[1];
 
   if(baudrate != -2) { /* -2: use default baudrate */
-    b_rate = select_baudrate(baudrate);
+	  if(baudrate == 38400) {
+		b_rate = B38400;
+	  } else if(baudrate == 19200) {
+		b_rate = B19200;
+	  } else if(baudrate == 57600) {
+		b_rate = B57600;
+	  } else if(baudrate == 115200) {
+		b_rate = B115200;
+	  } else if (baudrate == 230400) {
+		b_rate = B230400;
+	  } else {
+		fprintf(stderr, "unsupported speed: %d\n", baudrate);
+	  }
+    //b_rate = select_baudrate(baudrate);
     if(b_rate == 0) {
       err(1, "unknown baudrate %d", baudrate);
     }

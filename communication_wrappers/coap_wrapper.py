@@ -19,7 +19,7 @@ class CoAPWrapper(CommunicationWrapper):
         tunslip_ip_addr = self.control_prefix + control_tunslip_interface_id + prefix_length
         cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6 -C -s ' + serial_dev + ' ' + tunslip_ip_addr
         self.log.info(cmd)
-        self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-B', '230400', '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.__thread_stop = threading.Event()
         self.__rx_thread = threading.Thread(target=self.__serial_listen, args=(self.__thread_stop,))
         self.__rx_thread.daemon = True

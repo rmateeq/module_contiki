@@ -1,7 +1,7 @@
 import errno
 import struct
-
-from wishful_module_gitar.lib_gitar import *
+from wishful_module_gitar.lib_gitar import ControlDataType
+from wishful_module_gitar.lib_sensor import SensorNode
 
 
 class RPCFuncHdr():
@@ -61,10 +61,10 @@ def read_RPCRetHdr(message):
     return RPCRetHdr(con_uid, func_uid, ret_code)
 
 
-class RPCDataType(SensorDataType):
+class RPCDataType(ControlDataType):
 
     def __init__(self, uid=0, name="", size=0, endianness="<", fmt=""):
-        SensorDataType.__init__(self, uid, name, size, endianness, fmt)
+        ControlDataType.__init__(self, uid, name, size, endianness, fmt)
 
     def to_bytes(self, *args):
         """
@@ -95,8 +95,8 @@ class RPCDataType(SensorDataType):
 
 class RPCNode(SensorNode):
 
-    def __init__(self, serial_dev, node_id=0, interface="", mac_addr="", ip_addr="", com_wrapper=None):
-        SensorNode.__init__(self, serial_dev, node_id, interface)
+    def __init__(self, serial_dev, node_id=0, interface="", mac_addr="", ip_addr="", com_wrapper=None, platform="rm090"):
+        SensorNode.__init__(self, serial_dev, node_id, interface, platform)
         self.mac_addr = mac_addr
         self.ip_addr = ip_addr
         self.com_wrapper = com_wrapper
@@ -112,10 +112,11 @@ class RPCNode(SensorNode):
                     p = c.get_parameter(key)
                     if p is not None:
                         request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(SensorDataType("<", SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT['UINT16']).to_bytes(p.uid))
+                        request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).to_bytes(p.uid))
                         if p.datatype.has_variable_size():
                             # ToDO work on variable size by writing first byte
                             pass
+                        request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8')).to_bytes(p.datatype.size))
                         request_message.extend(p.datatype.to_bytes(value))
                         req_keys.append(key)
                     else:
@@ -149,7 +150,7 @@ class RPCNode(SensorNode):
                     p = c.get_parameter(key)
                     if p is not None:
                         request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(SensorDataType("<", SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT['UINT16']).to_bytes(p.uid))
+                        request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).to_bytes(p.uid))
                         req_keys.append(key)
                         req_params.append(p)
                     else:

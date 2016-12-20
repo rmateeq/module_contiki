@@ -1,3 +1,4 @@
+from .lib_sensor import *
 from .lib_gitar import *
 from .gitar_connector_module import *
 from .rpc_node import *

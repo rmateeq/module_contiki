@@ -4,8 +4,9 @@ from wishful_framework.classes import exceptions
 # <----!!!!! Important to include it here; otherwise cannot be pickled!!!!
 from wishful_framework.upi_arg_classes.radio_info import RadioInfo
 # <----!!!!! Important to include it here; otherwise cannot be pickled!!!!
-from wishful_framework.upi_arg_classes.radio_info import RadioPlatform
-from wishful_module_gitar.lib_gitar import SensorNodeFactory, ProtocolConnector
+# from wishful_framework.upi_arg_classes.radio_info import RadioPlatform
+from wishful_module_gitar.lib_gitar import ProtocolConnector
+from wishful_module_gitar.lib_sensor import SensorNodeFactory
 
 import logging
 import inspect
@@ -14,7 +15,7 @@ import time
 
 import traceback
 import sys
-import crc16
+# import crc16
 
 
 @wishful_module.build_module
@@ -31,16 +32,25 @@ class TAISCConnector(wishful_module.AgentModule):
         self.supported_interfaces = kwargs['SupportedInterfaces']
         self.protocol_attributes = kwargs['ControlAttributes']
         self.protocol_functions = kwargs['ControlFunctions']
-        self.connector = ProtocolConnector(2, "TAISC")
+        # self.connector = ProtocolConnector(2, "TAISC")
         # self.connector = ProtocolConnector(crc16.crc16xmodem(str.encode("TAISC")), "TAISC")
 
     @wishful_module.on_start()
     def start_TAISC_connector(self):
-        self.connector.parse_control_functions(self.protocol_functions)
-        self.connector.parse_control_attributes(self.protocol_attributes)
         for iface in self.supported_interfaces:
             node = self.node_factory.get_node(iface)
-            node.add_connector(self.connector)
+            connector = ProtocolConnector(2, "TAISC")
+            node.add_connector(connector)
+            if type(self.protocol_attributes) == list:
+                for attr_csv in self.protocol_attributes:
+                    self.node_factory.parse_control_attributes(attr_csv, node, connector)
+            else:
+                self.node_factory.parse_control_attributes(self.protocol_attributes, node, connector)
+            if type(self.protocol_functions) == list:
+                for function_csv in self.protocol_functions:
+                    self.node_factory.parse_control_functions(function_csv, node, connector)
+            else:
+                self.node_factory.parse_control_functions(self.protocol_functions, node, connector)
         pass
 
     @wishful_module.on_exit()

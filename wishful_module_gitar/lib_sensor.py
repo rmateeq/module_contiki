@@ -3,9 +3,8 @@ import logging
 import abc
 from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
-import struct
-import sys
-from wishful_module_gitar.lib_gitar import ProtocolConnector, ControlFunction, ControlAttribute
+import csv
+from wishful_module_gitar.lib_gitar import ProtocolConnector, ControlFunction, ControlDataType, Parameter, Event, Measurement
 
 
 SIMPLE_DATATYPE_NAMES = [
@@ -46,49 +45,6 @@ SIMPLE_DATATYPE_NAMES_TO_FORMAT = {
 }
 
 
-class SensorDataType():
-
-    to_string_byteorder = {'<': 'little', '>': 'big'}
-
-    def __init__(self, endianness="", fmt=""):
-        self.fmt = fmt
-        if endianness != "":
-            self.endianness = endianness
-        elif sys.byteorder == 'little':
-            self.endianness = '<'
-        else:
-            self.endianness = '>'
-
-        # self.struct_fmt = struct.Struct(self.endianness + self.fmt)
-        self.size = struct.calcsize(fmt)
-
-    def to_bytes(self, *val):
-        """
-        Transform value(s) to bytes specified by datatype format
-        """
-        tmp_fmt = self.fmt
-        if SensorDataType.to_string_byteorder[self.endianness] != sys.byteorder:
-            tmp_fmt = self.endianness + self.fmt
-        return struct.pack(tmp_fmt, *val)
-
-    def read_bytes(self, buf):
-        """
-        Read value(s) from a buffer. Returns a tuple according to the datatype format
-        """
-        tmp_fmt = self.fmt
-        if SensorDataType.to_string_byteorder[self.endianness] != sys.byteorder:
-            tmp_fmt = self.endianness + self.fmt
-        tpl = struct.unpack(tmp_fmt, buf)
-        if len(tpl) == 1:
-            tpl = tpl[0]
-        return tpl
-
-    def has_variable_size(self):
-        if self.size == 0:
-            return True
-        return False
-
-
 class SensorPlatform():
 
     DATATYPES = [
@@ -110,6 +66,10 @@ class SensorPlatform():
         "INT",
         "ULONG",
         "LONG",
+        "ULONGLONG",
+        "LONGLONG",
+        "FLOAT",
+        "DOUBLE",
         "STRING",
         "TLV",
         "OPAQUE"
@@ -132,21 +92,21 @@ class SensorPlatform():
     }
 
     def __init__(self, endianness_fmt):
-        self.__dt_formats_by_id = {}
-        self.__dt_formats_by_name = {}
+        self.dt_formats_by_id = {}
+        self.dt_formats_by_name = {}
         self.endianness_fmt = endianness_fmt
         for dt_name, dt_format in SensorPlatform.DATATYPE_NAMES_TO_FORMAT.items():
-            self.__dt_formats_by_id[SensorPlatform.DATATYPES.index(dt_name)] = dt_format
-            self.__dt_formats_by_name[dt_name] = dt_format
+            self.dt_formats_by_id[SensorPlatform.DATATYPES.index(dt_name)] = dt_format
+            self.dt_formats_by_name[dt_name] = dt_format
 
     def get_data_type_format_by_id(self, id):
-        if id in self.__dt_formats_by_id:
-            return self.__dt_formats_by_id[id]
+        if id in self.dt_formats_by_id:
+            return self.dt_formats_by_id[id]
         return None
 
     def get_data_type_format_by_name(self, name):
-        if name in self.__dt_formats_by_name:
-            return self.__dt_formats_by_name[name]
+        if name in self.dt_formats_by_name:
+            return self.dt_formats_by_name[name]
         return None
 
     def get_supported_datatypes(self):
@@ -154,7 +114,9 @@ class SensorPlatform():
 
     @classmethod
     def create_instance(cls, module_name, class_name):
-        py_module = __import__(module_name)
+        import importlib
+        py_module = importlib.import_module("wishful_module_gitar." + module_name)
+        # py_module = __import__("wishful_module_gitar." + module_name)
         globals()[module_name] = py_module
         module_class = getattr(py_module, class_name)
         module = module_class()
@@ -165,7 +127,7 @@ class SensorPlatform():
 class SensorNode():
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, serial_dev, node_id=0, interface="", platform):
+    def __init__(self, serial_dev, node_id=0, interface="", platform="rm090"):
         self.log = logging.getLogger('SensorNode.' + interface)
         self.serial_dev = serial_dev
         self.node_id = node_id
@@ -188,7 +150,9 @@ class SensorNode():
             return False
 
     def get_connector(self, key):
-        if isinstance(key, str):
+        if isinstance(key, ProtocolConnector):
+            return key
+        elif isinstance(key, str):
             return self.__connectors.get(key)
         elif isinstance(key, int):
             return self.__connectorsIDs.get(key)
@@ -372,7 +336,7 @@ class SensorNodeFactory():
 
                 platform_class = config.get(interface, 'PlatformClass')
                 platform_module = config.get(interface, 'PlatformModule')
-                platform = SensorPlatform.create_instance(platform_class, platform_module)
+                platform = SensorPlatform.create_instance(platform_module, platform_class)
 
                 # Create a specific type of node
                 node_type = config.get(interface, 'NodeType')
@@ -398,32 +362,32 @@ class SensorNodeFactory():
         else:
             return None
 
-    def __add_control_attribute(self, ctrl_attr, category):
+    def __add_control_attribute(self, node, ctrl_attr, category, connector):
         if category == "PARAMETER":
-            self.add_parameter(ctrl_attr)
+            node.add_parameter(connector, ctrl_attr)
         elif category == "MEASUREMENT":
-            self.add_measurement(ctrl_attr)
+            node.add_measurement(connector, ctrl_attr)
         elif category == "EVENT":
-            self.add_event(ctrl_attr)
+            node.add_event(connector, ctrl_attr)
         pass
 
-    def parse_control_attributes(self, csv_filename, node):
+    def parse_control_attributes(self, csv_filename, node, connector):
         if csv_filename != '':
             try:
                 file_rp = open(csv_filename, 'rt')
                 attributes = csv.DictReader(file_rp)
                 for attribute_def in attributes:
                     ctrl_attr = self.__create_control_attribute(int(attribute_def["unique_id"]), attribute_def["unique_name"], attribute_def["category"])
-                    if attribute_def["format"] in SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT:
-                        ctrl_attr.set_datatype(SensorDataType(attribute_def["endianness"], SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT[attribute_def["format"]]))
+                    if attribute_def["format"] in node.platform.get_supported_datatypes():
+                        ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], node.platform.get_data_type_format_by_name(attribute_def["format"])))
                     else:
-                        ctrl_attr.set_datatype(SensorDataType(attribute_def["endianness"], attribute_def["format"]))
+                        ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], attribute_def["format"]))
                     if ctrl_attr is not None:
-                        self.__add_control_attribute(ctrl_attr, attribute_def["category"])
+                        self.__add_control_attribute(node, ctrl_attr, attribute_def["category"], connector)
             except Exception as e:
                 self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
 
-    def parse_control_functions(self, csv_filename, node):
+    def parse_control_functions(self, csv_filename, node, connector):
         if csv_filename != '':
             try:
                 file_rp = open(csv_filename, 'rt')
@@ -433,16 +397,16 @@ class SensorNodeFactory():
                     fnct_fmt = function_def["format"]
                     if fnct_fmt != "":
                         ret_type = fnct_fmt.split(":")[0]
-                        if ret_type in SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT:
-                            ctrl_fnct.set_ret_datatype(SensorDataType(function_def["endianness"], SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT[ret_type]))
+                        if ret_type in node.platform.get_supported_datatypes():
+                            ctrl_fnct.set_ret_datatype(ControlDataType(function_def["endianness"], node.platform.get_data_type_format_by_name(ret_type)))
                         else:
-                            ctrl_fnct.set_ret_datatype(SensorDataType(function_def["endianness"], fnct_fmt))
+                            ctrl_fnct.set_ret_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
                         for arg_type in fnct_fmt.split(":")[1].split(";"):
-                            if arg_type in SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT:
-                                ctrl_fnct.append_arg_datatype(SensorDataType(function_def["endianness"], SensorNode.SIMPLE_DATATYPE_NAMES_TO_FORMAT[arg_type]))
+                            if arg_type in node.platform.get_supported_datatypes():
+                                ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], node.platform.get_data_type_format_by_name(arg_type)))
                             else:
-                                ctrl_fnct.append_arg_datatype(SensorDataType(function_def["endianness"], fnct_fmt))
-                    self.add_function(ctrl_fnct)
+                                ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
+                    node.add_function(connector, ctrl_fnct)
             except Exception as e:
                 self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
 
@@ -527,8 +491,6 @@ from construct import *
 
 construct_map = {"u1": Int8ul, "u2": Int16ul, "u4": Int32ul}
 
-def bla(fmt_map, key):
-    return 
 
 def create_construct(fmt_map):
     lst_ret = []
@@ -557,7 +519,7 @@ def create_construct(fmt_map):
     return tuple(lst_ret)
 
 
-def nog_eki(fmt_specifier, fmt_map, parent_index):
+def parse_format_specifier(fmt_specifier, fmt_map, parent_index):
     brackets_open = "{["
     brackets_close = "}]"
     sub_index = "1"
@@ -582,7 +544,7 @@ def nog_eki(fmt_specifier, fmt_map, parent_index):
             elif brackets_open[ind] == "{":
                 fmt_map[parent_index + sub_index]["type"] = "struct"
             print("substruct: " + parent_index + "." + sub_index + " " + fmt_specifier[begin_pos:end_pos])
-            nog_eki(fmt_specifier[begin_pos:end_pos], fmt_map[parent_index + sub_index], parent_index + sub_index)
+            parse_format_specifier(fmt_specifier[begin_pos:end_pos], fmt_map[parent_index + sub_index], parent_index + sub_index)
             print(sub_index)
             sub_index = str(int(sub_index) + 1)
         else:
@@ -610,19 +572,3 @@ def find_matching_bracket(fmt_specifier, bracket_open, bracket_close):
                 return i
             bracket_open_stack.pop()
     return -1
-
-
-def pair_brackets(fmt_specifier):
-    brackets_open = "{["
-    brackets_close = "}]"
-    bracket_ranges = {brackets_open.index('{'): [], brackets_open.index('['): []}
-    bracket_open_stack = {brackets_open.index('{'): [], brackets_open.index('['): []}
-    for i, c in enumerate(fmt_specifier):
-        if c in brackets_open:
-            bracket_open_stack[brackets_open.index(c)].append(i)
-        elif c in brackets_close:
-            pos = bracket_open_stack[brackets_close.index(c)].pop()
-            bracket_ranges[brackets_close.index(c)].append([pos, i])
-    print(fmt_specifier)
-    print(bracket_ranges)
-    print(bracket_open_stack)
