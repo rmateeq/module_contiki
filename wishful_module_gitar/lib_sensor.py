@@ -251,19 +251,19 @@ class SensorNode():
                 return con.num_of_measurements()
 
     @abc.abstractmethod
-    def write_parameters(self, connector, param_key_values):
+    def set_parameters(self, param_list, param_key_values):
         pass
 
     @abc.abstractmethod
-    def read_parameters(self, connector, param_keys):
+    def get_parameters(self, param_list):
         pass
 
     @abc.abstractmethod
-    def read_measurements(self, connector, measurement_keys):
+    def read_measurements(self, measurement_list, measurement_keys):
         pass
 
     @abc.abstractmethod
-    def add_events_subscriber(self, connector, event_names, event_callback):
+    def add_events_subscriber(self, event_list, event_callback, event_duration):
         pass
 
     @abc.abstractmethod
@@ -384,8 +384,9 @@ class SensorNodeFactory():
                         ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], attribute_def["format"]))
                     if ctrl_attr is not None:
                         self.__add_control_attribute(node, ctrl_attr, attribute_def["category"], connector)
+                    print("\"{}\",".format(attribute_def["unique_name"]))
             except Exception as e:
-                self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
+                self.log.fatal("Could not read parameters %s from %s error: %s" % (attribute_def, csv_filename, e))
 
     def parse_control_functions(self, csv_filename, node, connector):
         if csv_filename != '':
@@ -408,7 +409,7 @@ class SensorNodeFactory():
                                 ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
                     node.add_function(connector, ctrl_fnct)
             except Exception as e:
-                self.log.fatal("Could not read parameters for %s, from %s error: %s" % (self.name, csv_filename, e))
+                self.log.fatal("Could not read parameters from %s error: %s" % (csv_filename, e))
 
     def configure_datatypes(self, config_file):
         """
@@ -489,8 +490,9 @@ def split_format_specifier(fmt_specifier, parent_index):
 
 from construct import *
 
-construct_map = {"u1": Int8ul, "u2": Int16ul, "u4": Int32ul}
-
+le_platform_cnstrct_map = ["uS", "sS", "uI", "sI", "uL", "sL", "uF", "sF", "uD", "sD"]
+le_base_cnstrct_map = {"u1": Int8ul, "u2": Int16ul, "u4": Int32ul, "u8": Int64ul, "i1": Int8sl, "i2": Int16sl, "i4": Int32sl, "i8": Int64sl, "f4": Float32l, "f8": Float64l}
+be_construct_map = {}
 
 def create_construct(fmt_map):
     lst_ret = []

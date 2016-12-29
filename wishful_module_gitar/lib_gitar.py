@@ -172,9 +172,15 @@ class ProtocolConnector():
 
     def get_parameter(self, key):
         if isinstance(key, str):
-            return self.__params.get(key)
+            if key in self.__params:
+                return self.__params[key]
+            else:
+                return None
         elif isinstance(key, int):
-            return self.__paramsIDs.get(key)
+            if key in self.__paramsIDs:
+                return self.__paramsIDs[key]
+            else:
+                return None
         else:
             self.log.fatal('invalid argument type 7')
             return None
@@ -222,9 +228,15 @@ class ProtocolConnector():
 
     def get_event(self, key):
         if isinstance(key, str):
-            return self.__events.get(key)
+            if key in self.__events:
+                return self.__events[key]
+            else:
+                return None
         elif isinstance(key, int):
-            return self.__eventsIDs.get(key)
+            if key in self.__eventsIDs:
+                return self.__eventsIDs[key]
+            else:
+                return None
         else:
             self.log.fatal('invalid argument type')
             return None
@@ -247,12 +259,17 @@ class ProtocolConnector():
 
     def get_measurement(self, key):
         if isinstance(key, str):
-            return self.__measurements.get(key)
+            if key in self.__measurements:
+                return self.__measurements[key]
+            else:
+                return None
         elif isinstance(key, int):
-            return self.__measurementsIDs.get(key)
+            if key in self.__measurementsIDs:
+                return self.__measurementsIDs[key]
+            else:
+                return None
         else:
             self.log.fatal('invalid argument type')
-            return None
 
     def num_of_measurements(self):
         return len(self.__measurements)

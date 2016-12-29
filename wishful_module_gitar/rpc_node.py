@@ -1,31 +1,32 @@
 import errno
 import struct
-from wishful_module_gitar.lib_gitar import ControlDataType
+from wishful_module_gitar.lib_gitar import ControlDataType, Parameter, Event
 from wishful_module_gitar.lib_sensor import SensorNode
 
 
 class RPCFuncHdr():
 
-    fmt = struct.Struct("<BBB")
+    fmt = struct.Struct("<BBBB")
 
-    def __init__(self, con_uid, func_uid, num_of_args):
+    def __init__(self, con_uid, func_uid, num_of_args, args_len):
         self.con_uid = con_uid
         self.func_uid = func_uid
         self.num_of_args = num_of_args
+        self.args_len = args_len
 
     def __len__(self):
         return RPCFuncHdr.fmt.size
 
     def __repr__(self):
-        return "(C:%s,F:%s,NoA:%d)" % (self.con_uid, self.func_uid, self.num_of_args)
+        return "(C:%s,F:%s,NoA:%d,l:%d)" % (self.con_uid, self.func_uid, self.num_of_args, self.args_len)
 
     def to_bytes(self):
-        return RPCFuncHdr.fmt.pack(self.con_uid, self.func_uid, self.num_of_args)
+        return RPCFuncHdr.fmt.pack(self.con_uid, self.func_uid, self.num_of_args, self.args_len)
 
 
 def read_RPCFuncHdr(message):
-    con_uid, func_uid, num_of_args = RPCFuncHdr.fmt.unpack_from(message)
-    return RPCFuncHdr(con_uid, func_uid, num_of_args)
+    con_uid, func_uid, num_of_args, args_len = RPCFuncHdr.fmt.unpack_from(message)
+    return RPCFuncHdr(con_uid, func_uid, num_of_args, args_len)
 
 
 def printRetCode(ret_code):
@@ -101,86 +102,207 @@ class RPCNode(SensorNode):
         self.ip_addr = ip_addr
         self.com_wrapper = com_wrapper
 
-    def write_attributes(self, connector, param_key_values):
-        c = self.get_connector(connector)
-        if c is not None:
-            f = self.get_connector("GITAR").get_function('WRITE_ATTRIBUTE')
-            if f is not None:
-                request_message = bytearray()
-                req_keys = []
-                for key, value in param_key_values:
-                    p = c.get_parameter(key)
-                    if p is not None:
-                        request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).to_bytes(p.uid))
-                        if p.datatype.has_variable_size():
-                            # ToDO work on variable size by writing first byte
-                            pass
-                        request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8')).to_bytes(p.datatype.size))
-                        request_message.extend(p.datatype.to_bytes(value))
-                        req_keys.append(key)
-                    else:
-                        self.log.info('parameter %s not found', key)
+    def get_attr_by_key(self, attr_type, attr_key):
+        attr = None
+        for connector_name, connector_id in self.protocol_connectors.items():
+            if attr_type == 'parameter':
+                attr = self.get_parameter(connector_id, attr_key)
+            elif attr_type == 'event':
+                attr = self.get_event(connector_id, attr_key)
+            elif attr_type == 'measurement':
+                attr = self.get_measurement(connector_id, attr_key)
+            if attr is not None:
+                return attr
+        if attr is None:
+            self.log.info("Attr %s not found", attr_key)
+        return None
 
-                response_message = self.com_wrapper.send(request_message)
+    # def create_attribute_list_from_keys(self, attr_key_list, attr_type):
+    #     attr_list = []
+    #     for key in attr_key_list:
+    #         attr = self.get_attr_by_key(attr_type, key)
+    #         if attr is not None:
+    #             attr_list.append(attr)
+    #     return attr_list
 
-                resp_key_values = dict.fromkeys(req_keys)
-                line_ptr = 0
-                i = 0
-                while line_ptr < len(response_message) or i < len(req_keys):
-                    ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
-                    resp_key_values[req_keys[i]] = ret_hdr.ret_code
-                    line_ptr += len(ret_hdr)
-                    i += 1
-                return resp_key_values
+    def create_bytearray_from_attr_list(self, attr_list, attr_args=None):
+        b_array = bytearray()
+        for attr in attr_list:
+            b_array.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).to_bytes(attr.uid))
+            if type(attr) == Parameter and attr_args is not None and type(attr_args) == dict:
+                # b_array.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8')).to_bytes(attr.datatype.size))
+                b_array.extend(attr.datatype.to_bytes(attr_args[attr.name]))
+            elif type(attr) == Event and attr_args is not None:
+                b_array.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT32')).to_bytes(attr_args))
+        return b_array
+
+    def create_attr_key_value_from_bytearray(self, attr_type, num_attr, b_array):
+        line_ptr = 0
+        attr_key_value = {}
+        for i in range(0, num_attr):
+            attr_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(b_array[line_ptr:])
+            line_ptr += 2
+            attr = self.get_attr_by_key(attr_type, attr_uid)
+            if attr is not None:
+                attr_key_value[attr.name] = attr.datatype.read_bytes(b_array[line_ptr:])
+                line_ptr += attr.datatype.size
+        return attr_key_value
+
+    def create_attr_key_error_from_bytearray(self, attr_type, num_attr, b_array):
+        line_ptr = 0
+        attr_key_error = {}
+        for i in range(0, num_attr):
+            attr_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(b_array[line_ptr:])
+            line_ptr += 2
+            attr = self.get_attr_by_key(attr_type, attr_uid)
+            if attr is not None:
+                attr_key_error[attr.name] = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8')).read_bytes(b_array[line_ptr:])
+                line_ptr += 1
+        return attr_key_error
+
+    def set_parameters2(self, parameter_list, param_key_values):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('set_parameters')
+        b_array = self.create_bytearray_from_attr_list(parameter_list, param_key_values)
+        request_message = bytearray()
+        request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), len(b_array)).to_bytes())
+        request_message.extend(b_array)
+        response_message = self.com_wrapper.send(request_message)
+        ret_hdr = read_RPCRetHdr(response_message)
+        if ret_hdr.ret_code == 0:
+            return self.create_attr_key_error_from_bytearray("parameter", len(parameter_list), response_message[len(ret_hdr):])
+        return ret_hdr.ret_code
+
+    def set_parameters(self, parameter_list, param_key_values):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('set_parameter')
+        resp_key_values = {}
+        for param in parameter_list:
+            request_message = bytearray()
+            dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
+            request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size + param.datatype.size).to_bytes())
+            request_message.extend(dt_uid.to_bytes(param.uid))
+            # request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8')).to_bytes(param.datatype.size))
+            request_message.extend(param.datatype.to_bytes(param_key_values[param.uid]))
+            response_message = self.com_wrapper.send(request_message)
+            line_ptr = 0
+            ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
+            line_ptr += len(ret_hdr)
+            if ret_hdr.ret_code == 0:
+                # p_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(response_message[line_ptr:])
+                # line_ptr += 2
+                resp_key_values[param.name] = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8')).read_bytes(response_message[line_ptr:])
+                line_ptr += 1
             else:
-                self.log.fatal('SET_ATTRIBUTE function not found')
-        else:
-            self.log.info('connector %s not found', connector)
+                resp_key_values[param.name] = ret_hdr.ret_code
+        return resp_key_values
 
-    def read_attributes(self, connector, param_keys):
-        c = self.get_connector(connector)
-        if c is not None:
-            f = self.get_connector("GITAR").get_function('READ_ATTRIBUTE')
-            if f is not None:
-                request_message = bytearray()
-                req_keys = []
-                req_params = []
-                for key in param_keys:
-                    p = c.get_parameter(key)
-                    if p is not None:
-                        request_message.extend(RPCFuncHdr(self.get_connector("GITAR").uid, f.uid, f.num_of_args()).to_bytes())
-                        request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).to_bytes(p.uid))
-                        req_keys.append(key)
-                        req_params.append(p)
-                    else:
-                        self.log.info('parameter %s not found', key)
+    def get_parameters2(self, parameter_list):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('get_parameters')
+        b_array = self.create_bytearray_from_attr_list(parameter_list)
+        request_message = bytearray()
+        request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), len(b_array)).to_bytes())
+        request_message.extend(b_array)
+        response_message = self.com_wrapper.send(request_message)
+        ret_hdr = read_RPCRetHdr(response_message)
+        if ret_hdr.ret_code == 0:
+            return self.create_attr_key_value_from_bytearray("parameter", len(parameter_list), response_message[len(ret_hdr):])
+        return ret_hdr.ret_code
 
-                response_message = self.com_wrapper.send(request_message)
+    def get_parameters(self, parameter_list):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('get_parameter')
+        resp_key_values = {}
+        for param in parameter_list:
+            request_message = bytearray()
+            dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
+            request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size).to_bytes())
+            request_message.extend(dt_uid.to_bytes(param.uid))
+            print(request_message)
+            response_message = self.com_wrapper.send(request_message)
+            line_ptr = 0
+            ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
+            line_ptr += len(ret_hdr)
+            if ret_hdr.ret_code == 0:
+                # p_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(response_message[line_ptr:])
+                # line_ptr += 2
+                resp_key_values[param.name] = param.datatype.read_bytes(response_message[line_ptr:])
+                line_ptr += param.datatype.size
+        return resp_key_values
 
-                resp_key_values = dict.fromkeys(req_keys)
-                line_ptr = 0
-                i = 0
-                print(response_message)
-                while line_ptr < len(response_message) or i < len(req_keys):
-                    ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
-                    line_ptr += len(ret_hdr)
-                    if ret_hdr.ret_code == 0:
-                        if p.datatype.has_variable_size():
-                            # ToDO work on variable size by reading first byte
-                            pass
-                        else:
-                            resp_key_values[req_keys[i]] = req_params[i].datatype.read_bytes(response_message[line_ptr:])
-                            line_ptr += p.datatype.size
-                    i += 1
-                return resp_key_values
-            else:
-                self.log.fatal('READ_ATTRIBUTE function not found')
-        else:
-            self.log.info('connector %s not found', connector)
+    def read_measurements2(self, measurement_list):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('read_measurements')
+        b_array = self.create_bytearray_from_attr_list(measurement_list)
+        request_message = bytearray()
+        request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), len(b_array)).to_bytes())
+        request_message.extend(b_array)
+        response_message = self.com_wrapper.send(request_message)
+        ret_hdr = read_RPCRetHdr(response_message)
+        if ret_hdr.ret_code == 0:
+            return self.create_attr_key_value_from_bytearray("measurement", len(measurement_list), response_message[len(ret_hdr):])
+        return ret_hdr.ret_code
 
-    def add_attributes_subscriber(self, connector, event_keys, event_callback, event_duration):
-        pass
+    def read_measurements(self, measurement_list):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('read_measurement')
+        resp_key_values = {}
+        for measurement in measurement_list:
+            request_message = bytearray()
+            dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
+            request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size).to_bytes())
+            request_message.extend(dt_uid.to_bytes(measurement.uid))
+            response_message = self.com_wrapper.send(request_message)
+            line_ptr = 0
+            ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
+            line_ptr += len(ret_hdr)
+            if ret_hdr.ret_code == 0:
+                # p_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(response_message[line_ptr:])
+                # line_ptr += 2
+                resp_key_values[measurement.name] = measurement.datatype.read_bytes(response_message[line_ptr:])
+                line_ptr += measurement.datatype.size
+        return resp_key_values
+
+    def subscribe_events2(self, event_list, event_callback, event_duration):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('subscribe_events')
+        b_array = self.create_bytearray_from_attr_list(event_list, event_duration)
+        request_message = bytearray()
+        request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), len(b_array)).to_bytes())
+        request_message.extend(b_array)
+        response_message = self.com_wrapper.send(request_message)
+        ret_hdr = read_RPCRetHdr(response_message)
+        if ret_hdr.ret_code == 0:
+            event_key_error = self.create_attr_key_error_from_bytearray("parameter", len(event_list), response_message[len(ret_hdr):])
+            for key in event_key_error:
+                event_list[key].subscriber_callbacks.append(event_callback)
+            return event_key_error
+        return ret_hdr.ret_code
+
+    def subscribe_events(self, event_list, event_callback, event_duration):
+        generic_connector = self.get_connector("generic_connector")
+        f = generic_connector.get_function('subscribe_event')
+        resp_key_values = {}
+        for event in event_list:
+            request_message = bytearray()
+            dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
+            dt_duration = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT32'))
+            request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size + dt_duration.size).to_bytes())
+            request_message.extend(dt_uid.to_bytes(event.uid))
+            request_message.extend(dt_duration.to_bytes(event_duration))
+            response_message = self.com_wrapper.send(request_message)
+            line_ptr = 0
+            ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
+            line_ptr += len(ret_hdr)
+            if ret_hdr.ret_code == 0:
+                # p_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(response_message[line_ptr:])
+                # line_ptr += 2
+                resp_key_values[event.name] = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8')).read_bytes(response_message[line_ptr:])
+                line_ptr += 1
+                event.subscriber_callbacks.append(event_callback)
+                # line_ptr += event.datatype.size
+        return resp_key_values
 
     def reset(self):
         pass

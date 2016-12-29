@@ -9,7 +9,7 @@ def readme():
 setup(
     name='wishful_module_gitar',
     version='1.1.0',
-    packages=['communication_wrappers', 'wishful_module_gitar', 'wishful_module_taisc', 'wishful_module_rime'],
+    packages=['communication_wrappers', 'wishful_module_gitar', 'wishful_module_generic', 'wishful_module_contikibase', 'wishful_module_taisc', 'wishful_module_rime', 'wishful_module_ipv6', 'wishful_module_lpl_csma'],
     url='http://www.wishful-project.eu/software',
     license='',
     author='Peter Ruckebusch',

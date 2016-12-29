@@ -3,7 +3,7 @@ from wishful_module_contikibase.net_connector_module import NetConnectorModule
 
 
 @wishful_module.build_module
-class RIMEConnector(NetConnectorModule):
+class IPv6Connector(NetConnectorModule):
 
     def __init__(self, **kwargs):
-        super(RIMEConnector, self).__init__(**kwargs)
+        super(IPv6Connector, self).__init__(**kwargs)
