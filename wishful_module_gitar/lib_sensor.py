@@ -8,6 +8,7 @@ from wishful_module_gitar.lib_gitar import ProtocolConnector, ControlFunction, C
 import traceback
 import sys
 import subprocess
+import gevent
 # from .rpc_node import RPCNode
 
 SIMPLE_DATATYPE_NAMES = [
@@ -376,6 +377,7 @@ class SensorNodeFactory():
                     out = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
                     self.log.info(out)
                     self.log.info("Found Zoul on %s", mote_dev)
+                    gevent.sleep(1)
                     com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200")
                 elif "RM090" in mote_description:
                     # defince is a RM090
