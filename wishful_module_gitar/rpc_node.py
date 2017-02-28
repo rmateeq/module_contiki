@@ -96,10 +96,8 @@ class RPCDataType(ControlDataType):
 
 class RPCNode(SensorNode):
 
-    def __init__(self, serial_dev, node_id=0, interface="", mac_addr="", ip_addr="", com_wrapper=None, platform="rm090"):
-        SensorNode.__init__(self, serial_dev, node_id, interface, platform)
-        self.mac_addr = mac_addr
-        self.ip_addr = ip_addr
+    def __init__(self, interface, platform, com_wrapper):
+        SensorNode.__init__(self, interface, platform)
         self.com_wrapper = com_wrapper
 
     def get_attr_by_key(self, attr_type, attr_key):
@@ -183,7 +181,7 @@ class RPCNode(SensorNode):
             request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size + param.datatype.size).to_bytes())
             request_message.extend(dt_uid.to_bytes(param.uid))
             # request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8')).to_bytes(param.datatype.size))
-            request_message.extend(param.datatype.to_bytes(param_key_values[param.uid]))
+            request_message.extend(param.datatype.to_bytes(param_key_values[param.name]))
             response_message = self.com_wrapper.send(request_message)
             line_ptr = 0
             ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
@@ -219,7 +217,7 @@ class RPCNode(SensorNode):
             dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
             request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size).to_bytes())
             request_message.extend(dt_uid.to_bytes(param.uid))
-            print(request_message)
+            # print(request_message)
             response_message = self.com_wrapper.send(request_message)
             line_ptr = 0
             ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
@@ -310,20 +308,29 @@ class RPCNode(SensorNode):
     def __str__(self):
         return "ContikiNode " + self.interface
 
-    def forward_rpc(self, connector, fname, fargs):
+    def forward_rpc(self, connector, fname, *fargs):
         c = self.get_connector(connector)
+        # print("{} {} {} {}".format(connector, fname, fargs, len(fargs)))
         if c is not None:
             f = c.get_function(fname)
             if f is not None and len(f.get_args_datatypes()) == len(fargs):
                 request_message = bytearray()
-                request_message.extend(RPCFuncHdr(c.uid, f.uid, f.num_of_args()).to_bytes())
+                args_len = 0
+                # request_message.extend(RPCFuncHdr(c.uid, f.uid, f.num_of_args()).to_bytes())
                 for i in range(0, len(fargs)):
-                    request_message.extend(f.get_args_datatypes()[i].to_bytes(fargs[i]))
+                    # print("{} {} {}".format(f.get_args_datatypes()[i].size, f.get_args_datatypes()[i].fmt, fargs[i]))
+                    request_message.extend(f.get_args_datatypes()[i].to_bytes(*fargs[i]))
+                    args_len = args_len + f.get_args_datatypes()[i].size
+                request_message = RPCFuncHdr(c.uid, f.uid, f.num_of_args(), args_len).to_bytes() + request_message
                 response_message = self.com_wrapper.send(request_message)
                 ret_hdr = read_RPCRetHdr(response_message)
+                # print(ret_hdr)
                 if ret_hdr.ret_code == 0:
                     if f.get_ret_datatype() is not None:
                         return f.get_ret_datatype().read_bytes(response_message[len(ret_hdr):])
+            else:
+                self.log.info("length argument list {} {} not correct {}".format(fargs, len(fargs), len(f.get_args_datatypes())))
+                return None
 
     def execute_rpc(self, connector_uid, function_uid, function_def, num_args, args):
         request_message = bytearray()

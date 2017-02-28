@@ -16,4 +16,5 @@ class GitarEngine(wishful_module.AgentModule):
         self.gitar_config = kwargs['GitarConfig']
         self.node_factory = SensorNodeFactory()
         self.supported_interfaces = kwargs["SupportedInterfaces"]
-        self.node_factory.create_nodes(self.gitar_config, self.supported_interfaces)
+        # self.node_factory.create_nodes(self.gitar_config, self.supported_interfaces)
+        self.node_factory.create_nodes_auto()

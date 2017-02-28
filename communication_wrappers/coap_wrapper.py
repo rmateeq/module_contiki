@@ -9,17 +9,20 @@ import asyncio
 
 class CoAPWrapper(CommunicationWrapper):
 
-    def __init__(self, ip_addr, node_id, serial_dev):
-        self.log = logging.getLogger('CoAPWrapper.' + ip_addr)
-        self.ip_addr = ip_addr
+    def __init__(self, node_id, serial_dev, serial_baudrate):
         self.node_id = node_id
         self.control_prefix = "fd00:c:" + str(node_id) + "::"
+        # self.control_prefix = "fd00:c::"
         control_tunslip_interface_id = "1"
         prefix_length = "/64"
         tunslip_ip_addr = self.control_prefix + control_tunslip_interface_id + prefix_length
-        cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6 -C -s ' + serial_dev + ' ' + tunslip_ip_addr
+        cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6 -C -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
+        self.log = logging.getLogger('CoAPWrapper.' + str(self.node_id))
         self.log.info(cmd)
-        self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-B', '230400', '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        if "cooja" in serial_dev:
+            self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6-cooja', '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        else:
+            self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.__thread_stop = threading.Event()
         self.__rx_thread = threading.Thread(target=self.__serial_listen, args=(self.__thread_stop,))
         self.__rx_thread.daemon = True
@@ -32,8 +35,9 @@ class CoAPWrapper(CommunicationWrapper):
         request = aiocoap.Message(code=aiocoap.POST, payload=payload)
         request.set_request_uri('coap://[' + self.control_prefix + '2]/wishful_funcs')
         response = yield from context.request(request).response
-        self.log.info("Result: %s\n%r" % (response.code, response.payload))
+        # self.log.info("Result: %s\n%r" % (response.code, response.payload))
         self.__response = response.payload
+        context.shutdown()
 
     def send(self, payload):
         if True:

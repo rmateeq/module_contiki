@@ -249,7 +249,29 @@ serial_to_tun(FILE *inslip, int outfd)
             slip_send_char(slipfd, addr.s6_addr[i]);
           }
           slip_send(slipfd, SLIP_END);
-        }
+        } else if(uip.inbuf[1] == 'C'){
+			/* Prefix info requested */
+          struct in6_addr addr;
+          int i;
+          char *s = strchr(ipaddr, '/');
+          if(s != NULL) {
+            *s = '\0';
+          }
+          inet_pton(AF_INET6, ipaddr, &addr);
+          if(timestamp) stamptime();
+          fprintf(stderr,"*** Address:%s => %02x%02x:%02x%02x:%02x%02x:%02x%02x\n",ipaddr,
+                                                                                   addr.s6_addr[0], addr.s6_addr[1],
+                                                                                   addr.s6_addr[2], addr.s6_addr[3],
+                                                                                   addr.s6_addr[4], addr.s6_addr[5],
+                                                                                   addr.s6_addr[6], addr.s6_addr[7]);
+          slip_send(slipfd, '!');
+          slip_send(slipfd, 'C');
+          for(i = 0; i < 8; i++) {
+            /* need to call the slip_send_char for stuffing */
+            slip_send_char(slipfd, addr.s6_addr[i]);
+          }
+          slip_send(slipfd, SLIP_END);
+		}
 #define DEBUG_LINE_MARKER '\r'
       } else if(uip.inbuf[0] == DEBUG_LINE_MARKER) {
           if(verbose != 0){
@@ -529,7 +551,7 @@ stty_telos(int fd)
 
   if(tcsetattr(fd, TCSAFLUSH, &tty) == -1) err(1, "tcsetattr");
 
-#if 1
+#if 0
   /* Nonblocking read and write. */
   /* if(fcntl(fd, F_SETFL, O_NONBLOCK) == -1) err(1, "fcntl"); */
 
@@ -1005,39 +1027,41 @@ exit(1);
   signal(SIGALRM, sigalarm);
   ifconf(tundev, ipaddr);
  
-  if(push_rpl_prefix || push_wishful_control_prefix){
-    struct in6_addr addr;
-    int i;
-
-    char* s = strchr(ipaddr, '/');
-    if(s != NULL) {
-      *s = '\0';
-      char* pre = s+1;
-      int prefix_len = atoi(pre);
-      if(prefix_len != 64){
-        err(1, "Only prefix length of 64 is supported");
-      }
-    } else {
-      err(1, "No IPv6 prefix length");
-    }
-
-    inet_pton(AF_INET6, ipaddr, &addr);
-
-    if(push_rpl_prefix){
-      fprintf(stderr, "Pushing global RPL prefix and starting RPL\n");
-      slip_send(slipfd, '!');
-      slip_send(slipfd, 'R');
-    } else if(push_wishful_control_prefix){
-      fprintf(stderr, "Pushing wishful control prefix\n");
-      slip_send(slipfd, '!');
-      slip_send(slipfd, 'C');
-    }
-
-    for(i = 0; i < 8; i++) {
-      slip_send_char(slipfd, addr.s6_addr[i]);
-    }
-    slip_send(slipfd, SLIP_END);
-  }
+  //~ if(push_rpl_prefix || push_wishful_control_prefix){
+    //~ struct in6_addr addr;
+    //~ int i;
+//~ 
+    //~ char* s = strchr(ipaddr, '/');
+    //~ if(s != NULL) {
+      //~ *s = '\0';
+      //~ char* pre = s+1;
+      //~ int prefix_len = atoi(pre);
+      //~ if(prefix_len != 64){
+        //~ err(1, "Only prefix length of 64 is supported");
+      //~ }
+    //~ } else {
+      //~ err(1, "No IPv6 prefix length");
+    //~ }
+//~ 
+    //~ inet_pton(AF_INET6, ipaddr, &addr);
+    //~ 
+    //~ sleep(3);
+//~ 
+    //~ if(push_rpl_prefix){
+      //~ fprintf(stderr, "Pushing global RPL prefix and starting RPL\n");
+      //~ slip_send(slipfd, '!');
+      //~ slip_send(slipfd, 'R');
+    //~ } else if(push_wishful_control_prefix){
+      //~ fprintf(stderr, "Pushing wishful control prefix\n");
+      //~ slip_send(slipfd, '!');
+      //~ slip_send(slipfd, 'C');
+    //~ }
+//~ 
+    //~ for(i = 0; i < 8; i++) {
+      //~ slip_send_char(slipfd, addr.s6_addr[i]);
+    //~ }
+    //~ slip_send(slipfd, SLIP_END);
+  //~ }
 
   while(1) {
     maxfd = 0;

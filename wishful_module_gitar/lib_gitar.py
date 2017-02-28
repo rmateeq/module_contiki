@@ -202,6 +202,7 @@ class ProtocolConnector():
             return False
 
     def get_function(self, key):
+        # print(key)
         if isinstance(key, str):
             return self.__funcs.get(key)
         elif isinstance(key, int):

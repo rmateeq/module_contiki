@@ -5,7 +5,10 @@ from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
 import csv
 from wishful_module_gitar.lib_gitar import ProtocolConnector, ControlFunction, ControlDataType, Parameter, Event, Measurement
-
+import traceback
+import sys
+import subprocess
+# from .rpc_node import RPCNode
 
 SIMPLE_DATATYPE_NAMES = [
     "BOOL",
@@ -127,10 +130,8 @@ class SensorPlatform():
 class SensorNode():
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, serial_dev, node_id=0, interface="", platform="rm090"):
+    def __init__(self, interface, platform):
         self.log = logging.getLogger('SensorNode.' + interface)
-        self.serial_dev = serial_dev
-        self.node_id = node_id
         self.interface = interface
         self.platform = platform
         self.__connectorsIDs = {}
@@ -307,6 +308,87 @@ class SensorNodeFactory():
     def __getattr__(self, name):
         return getattr(self.instance, name)
 
+    def create_nodes_auto(self):
+        from .rpc_node import RPCNode
+        # motelist_output = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/motelist", "-c"], universal_newlines=True)
+        # for line in motelist_output.strip().split("\n"):
+        #     mote_description = line.split(",")[2]
+        #     mote_dev = line.split(",")[1]
+        #     mote_dev_id = ""
+        #     for char in mote_dev:
+        #         if char.isdigit():
+        #             mote_dev_id = mote_dev_id + char
+        #     interface = "lowpan" + mote_dev_id
+        #     mote_dev_id = int(mote_dev_id) + 1
+        #     if "Zolertia RE-Mote" in mote_description:
+        #         # device is a remote
+        #         platform_class = "Zoul"
+        #         platform_module = "lib_arm_cortex_m"
+        #         self.log.info("cc2538-bsl.py  -p %s -a 0x00202000", mote_dev)
+        #         # compl_proc = subprocess.run(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"], stdout=subprocess.PIPE)
+        #         # self.log.info(compl_proc.stdout)
+        #         out = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
+        #         self.log.info(out)
+        #         self.log.info("Found Zoul on %s", mote_dev)
+        #         com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200")
+        #     elif "RM090" in mote_description:
+        #         # defince is a RM090
+        #         platform_class = "RM090"
+        #         platform_module = "lib_msp430"
+        #         self.log.info("Found RM090 on %s", mote_dev)
+        #         com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "230400")
+        #     else:
+        #         self.log.info("skipping unknown node type")
+        #         break
+        #     platform = SensorPlatform.create_instance(platform_module, platform_class)
+        #     self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
+        motelist_output = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/motelist", "-c"], universal_newlines=True).strip()
+        if motelist_output == "No devices found.":
+            # check if there are cooja devices!
+            try:
+                cooja_devs = subprocess.check_output("ls -1 /dev/cooja_rm090* 2>/dev/null", shell=True, universal_newlines=True).strip().split("\n")
+                for i, cooja_dev in enumerate(cooja_devs):
+                    platform_class = "RM090"
+                    platform_module = "lib_msp430"
+                    com_wrapper = CoAPWrapper(i + 1, cooja_dev, "230400")
+                    platform = SensorPlatform.create_instance(platform_module, platform_class)
+                    interface = "lowpan" + str(i)
+                    self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
+            except subprocess.CalledProcessError:
+                self.log.fatal("There are no sensor nodes attached to this machine, and there are no cooja devices, cannot start!!!")
+        else:
+            for line in motelist_output.split("\n"):
+                mote_description = line.split(",")[2]
+                mote_dev = line.split(",")[1]
+                mote_dev_id = ""
+                for char in mote_dev:
+                    if char.isdigit():
+                        mote_dev_id = mote_dev_id + char
+                interface = "lowpan" + mote_dev_id
+                mote_dev_id = int(mote_dev_id) + 1
+                if "Zolertia RE-Mote" in mote_description:
+                    # device is a remote
+                    platform_class = "Zoul"
+                    platform_module = "lib_arm_cortex_m"
+                    self.log.info("cc2538-bsl.py  -p %s -a 0x00202000", mote_dev)
+                    # compl_proc = subprocess.run(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"], stdout=subprocess.PIPE)
+                    # self.log.info(compl_proc.stdout)
+                    out = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
+                    self.log.info(out)
+                    self.log.info("Found Zoul on %s", mote_dev)
+                    com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200")
+                elif "RM090" in mote_description:
+                    # defince is a RM090
+                    platform_class = "RM090"
+                    platform_module = "lib_msp430"
+                    self.log.info("Found RM090 on %s", mote_dev)
+                    com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "230400")
+                else:
+                    self.log.info("skipping unknown node type")
+                    break
+                platform = SensorPlatform.create_instance(platform_module, platform_class)
+                self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
+
     def create_nodes(self, config_file, supported_interfaces):
         config = ConfigParser.ConfigParser()
         config.optionxform = str
@@ -371,6 +453,12 @@ class SensorNodeFactory():
             node.add_event(connector, ctrl_attr)
         pass
 
+    def __parse_struct_attribute(self, node_platform, fmt_specifier):
+        struct_fmt = ""
+        for strct_el_specifier in fmt_specifier.split(";"):
+            struct_fmt = struct_fmt + node_platform.get_data_type_format_by_name(strct_el_specifier)
+        return struct_fmt
+
     def parse_control_attributes(self, csv_filename, node, connector):
         if csv_filename != '':
             try:
@@ -381,12 +469,20 @@ class SensorNodeFactory():
                     if attribute_def["format"] in node.platform.get_supported_datatypes():
                         ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], node.platform.get_data_type_format_by_name(attribute_def["format"])))
                     else:
-                        ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], attribute_def["format"]))
+                        # ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], attribute_def["format"]))
+                        ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], self.__parse_struct_attribute(node.platform, attribute_def["format"])))
                     if ctrl_attr is not None:
                         self.__add_control_attribute(node, ctrl_attr, attribute_def["category"], connector)
-                    print("\"{}\",".format(attribute_def["unique_name"]))
+                    # print("\"{}\",".format(attribute_def["unique_name"]))
             except Exception as e:
                 self.log.fatal("Could not read parameters %s from %s error: %s" % (attribute_def, csv_filename, e))
+
+    def __parse_struct_param(self, node_platform, fmt_specifier):
+        struct_fmt = ""
+        for strct_el_specifier in fmt_specifier.split("|"):
+            # print(strct_el_specifier)
+            struct_fmt = struct_fmt + node_platform.get_data_type_format_by_name(strct_el_specifier)
+        return struct_fmt
 
     def parse_control_functions(self, csv_filename, node, connector):
         if csv_filename != '':
@@ -394,6 +490,7 @@ class SensorNodeFactory():
                 file_rp = open(csv_filename, 'rt')
                 functions = csv.DictReader(file_rp)
                 for function_def in functions:
+                    # print("{}{}".format(function_def["unique_id"], function_def["unique_name"]))
                     ctrl_fnct = ControlFunction(int(function_def["unique_id"]), function_def["unique_name"])
                     fnct_fmt = function_def["format"]
                     if fnct_fmt != "":
@@ -401,14 +498,18 @@ class SensorNodeFactory():
                         if ret_type in node.platform.get_supported_datatypes():
                             ctrl_fnct.set_ret_datatype(ControlDataType(function_def["endianness"], node.platform.get_data_type_format_by_name(ret_type)))
                         else:
-                            ctrl_fnct.set_ret_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
+                            # ctrl_fnct.set_ret_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
+                            ctrl_fnct.set_ret_datatype(ControlDataType(function_def["endianness"], self.__parse_struct_param(node.platform, ret_type)))
                         for arg_type in fnct_fmt.split(":")[1].split(";"):
-                            if arg_type in node.platform.get_supported_datatypes():
-                                ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], node.platform.get_data_type_format_by_name(arg_type)))
-                            else:
-                                ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
+                            if arg_type != "":
+                                if arg_type in node.platform.get_supported_datatypes():
+                                    ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], node.platform.get_data_type_format_by_name(arg_type)))
+                                else:
+                                    # ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], fnct_fmt))
+                                    ctrl_fnct.append_arg_datatype(ControlDataType(function_def["endianness"], self.__parse_struct_param(node.platform, arg_type)))
                     node.add_function(connector, ctrl_fnct)
             except Exception as e:
+                traceback.print_exc(file=sys.stdout)
                 self.log.fatal("Could not read parameters from %s error: %s" % (csv_filename, e))
 
     def configure_datatypes(self, config_file):
