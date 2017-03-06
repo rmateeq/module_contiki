@@ -1,10 +1,12 @@
 import logging
-#from coapthon.client.helperclient import HelperClient
+# from coapthon.client.helperclient import HelperClient
 from communication_wrappers.lib_communication_wrapper import CommunicationWrapper
 import subprocess
 import threading
-import aiocoap
+
 import asyncio
+import aiocoap
+# import aiocoap.resource as resource
 
 
 class CoAPWrapper(CommunicationWrapper):
@@ -28,6 +30,11 @@ class CoAPWrapper(CommunicationWrapper):
         self.__rx_thread.daemon = True
         self.__rx_thread.start()
         self.__response = None
+        # root = resource.Site()
+        # root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
+        # root.add_resource(('wishful_events',), EventResource())
+        # asyncio.Task(aiocoap.Context.create_server_context(root))
+        # asyncio.get_event_loop().run_forever()
 
     @asyncio.coroutine
     def coap_send(self, payload):
@@ -37,7 +44,7 @@ class CoAPWrapper(CommunicationWrapper):
         response = yield from context.request(request).response
         # self.log.info("Result: %s\n%r" % (response.code, response.payload))
         self.__response = response.payload
-        context.shutdown()
+        yield from context.shutdown()
 
     def send(self, payload):
         if True:
@@ -52,3 +59,23 @@ class CoAPWrapper(CommunicationWrapper):
     def __serial_listen(self, stop_event):
         while not stop_event.is_set():
             self.log.info("%s", self.slip_process.stdout.readline().strip())
+
+
+# class EventResource(resource.Resource):
+#     """
+#     Example resource which supports GET and PUT methods. It sends large
+#     responses, which trigger blockwise transfer.
+#     """
+
+#     def __init__(self):
+#         super(EventResource, self).__init__()
+
+#     async def render_get(self, request):
+#         return aiocoap.Message(payload=self.content)
+
+#     async def render_put(self, request):
+#         print('PUT payload: %s' % request.payload)
+#         self.content = request.payload
+#         payload = ("I've accepted the new payload. You may inspect it here in "\
+#                 "Python's repr format:\n\n%r"%self.content).encode('utf8')
+#         return aiocoap.Message(payload=payload)
