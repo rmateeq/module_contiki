@@ -68,6 +68,7 @@ const char *ipaddr;
 const char *netmask;
 int slipfd = 0;
 uint16_t basedelay=0,delaymsec=0;
+useconds_t serialdelay=1;
 uint32_t startsec,startmsec,delaystartsec,delaystartmsec;
 int timestamp = 0, flowcontrol=0, showprogress=0, flowcontrol_xonxoff=0;
 
@@ -398,6 +399,7 @@ slip_send_char(int fd, unsigned char c)
 void
 slip_send(int fd, unsigned char c)
 {
+	
   if(slip_end >= sizeof(slip_buf)) {
     err(1, "slip_send overflow");
   }
@@ -414,15 +416,19 @@ slip_empty()
 void
 slip_flushbuf(int fd)
 {
-  int n;
+  int n = 0;
 
   if(slip_empty()) {
     return;
   }
 
-  n = write(fd, slip_buf + slip_begin, (slip_end - slip_begin));
 
-  if(n == -1 && errno != EAGAIN) {
+uint8_t index = 0;
+for(index = 0 ; index < (slip_end - slip_begin) && n != -1 ; index++){
+  n += write(fd, slip_buf + index, 1);
+  usleep(serialdelay);
+}
+  if(n != (slip_end - slip_begin) && errno != EAGAIN) {
     err(1, "slip_flushbuf write failed");
   } else if(n == -1) {
     PROGRESS("Q");    /* Outqueueis full! */
@@ -551,7 +557,7 @@ stty_telos(int fd)
 
   if(tcsetattr(fd, TCSAFLUSH, &tty) == -1) err(1, "tcsetattr");
 
-#if 0
+#if 1
   /* Nonblocking read and write. */
   /* if(fcntl(fd, F_SETFL, O_NONBLOCK) == -1) err(1, "fcntl"); */
 
@@ -795,7 +801,7 @@ main(int argc, char **argv)
   prog = argv[0];
   setvbuf(stdout, NULL, _IOLBF, 0); /* Line buffered output. */
 
-  while((c = getopt(argc, argv, "B:HIRCLPhXM:s:t:v::d::a:p:T")) != -1) {
+  while((c = getopt(argc, argv, "B:HIRCLPhXM:s:t:v::d::D::a:p:T")) != -1) {
     switch(c) {
     case 'B':
       baudrate = atoi(optarg);
@@ -864,6 +870,11 @@ main(int argc, char **argv)
       basedelay = 10;
       if (optarg) basedelay = atoi(optarg);
       break;
+    
+    case 'D':
+	  serialdelay = atoi(optarg); 
+      break;
+    
 
     case 'v':
       verbose = 2;
@@ -904,6 +915,7 @@ fprintf(stderr,"    -v          Equivalent to -v3\n");
 fprintf(stderr," -d[basedelay]  Minimum delay between outgoing SLIP packets.\n");
 fprintf(stderr,"                Actual delay is basedelay*(#6LowPAN fragments) milliseconds.\n");
 fprintf(stderr,"                -d is equivalent to -d10.\n");
+fprintf(stderr," -D             Delay between consecutive serial bytes (0 by default).\n");
 fprintf(stderr," -a serveraddr  \n");
 fprintf(stderr," -p serverport  \n");
 exit(1);
@@ -914,7 +926,7 @@ exit(1);
   argv += (optind - 1);
 
   if(argc != 2 && argc != 3) {
-    err(1, "usage: %s [-B baudrate] [-H] [-L] [-s siodev] [-t tundev] [-T] [-v verbosity] [-d delay] [-a serveraddress] [-p serverport] ipaddress", prog);
+    err(1, "usage: %s [-B baudrate] [-H] [-L] [-s siodev] [-t tundev] [-T] [-v verbosity] [-d delay] [-D serialdelay] [-a serveraddress] [-p serverport] ipaddress", prog);
   }
   ipaddr = argv[1];
 
@@ -935,7 +947,9 @@ exit(1);
     //b_rate = select_baudrate(baudrate);
     if(b_rate == 0) {
       err(1, "unknown baudrate %d", baudrate);
-    }
+    } else {
+		fprintf(stderr, "Selected baudrate: %d\n", baudrate);
+	}
   }
 
   if(host != NULL) {
@@ -1010,6 +1024,9 @@ exit(1);
     fprintf(stderr, "********SLIP started on ``/dev/%s''\n", siodev);
     stty_telos(slipfd);
   }
+  
+  
+  
   slip_send(slipfd, SLIP_END);
   inslip = fdopen(slipfd, "r");
   if(inslip == NULL) err(1, "main: fdopen");

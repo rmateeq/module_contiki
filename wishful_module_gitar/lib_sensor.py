@@ -351,7 +351,7 @@ class SensorNodeFactory():
                 for i, cooja_dev in enumerate(cooja_devs):
                     platform_class = "RM090"
                     platform_module = "lib_msp430"
-                    com_wrapper = CoAPWrapper(i + 1, cooja_dev, "230400")
+                    com_wrapper = CoAPWrapper(i + 1, cooja_dev, "115200", "500") #Jan: 500 serial delay for taisc (writing to serial while in interrupt causes issues)
                     platform = SensorPlatform.create_instance(platform_module, platform_class)
                     interface = "lowpan" + str(i)
                     self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
@@ -377,14 +377,14 @@ class SensorNodeFactory():
                     out = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
                     self.log.info(out)
                     self.log.info("Found Zoul on %s", mote_dev)
-                    gevent.sleep(1)
+                    gevent.sleep(2)
                     com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200")
                 elif "RM090" in mote_description:
                     # defince is a RM090
                     platform_class = "RM090"
                     platform_module = "lib_msp430"
                     self.log.info("Found RM090 on %s", mote_dev)
-                    com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "230400")
+                    com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200", "500")
                 else:
                     self.log.info("skipping unknown node type")
                     break
