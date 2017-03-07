@@ -11,7 +11,7 @@ import aiocoap
 
 class CoAPWrapper(CommunicationWrapper):
 
-    def __init__(self, node_id, serial_dev, serial_baudrate, serial_delay = "0"):
+    def __init__(self, node_id, serial_dev, serial_baudrate, serial_delay="0"):
         self.node_id = node_id
         self.control_prefix = "fd00:c:" + str(node_id) + "::"
         # self.control_prefix = "fd00:c::"
@@ -19,6 +19,25 @@ class CoAPWrapper(CommunicationWrapper):
         prefix_length = "/64"
         tunslip_ip_addr = self.control_prefix + control_tunslip_interface_id + prefix_length
         self.log = logging.getLogger('CoAPWrapper.' + str(self.node_id))
+
+        if int(subprocess.check_output("sudo ip6tables -C INPUT -d fd00:c::/24 -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -A INPUT -d fd00:c::/24 -j ACCEPT", shell=True, universal_newlines=True).strip()
+
+        if int(subprocess.check_output("sudo ip6tables -C OUTPUT -s fd00:c::/24 -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -A OUTPUT -s fd00:c::/24 -j ACCEPT", shell=True, universal_newlines=True).strip()
+
+        if int(subprocess.check_output("sudo ip6tables -C OUTPUT -o tun+ -j DROP 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -A OUTPUT -o tun+ -j DROP", shell=True, universal_newlines=True).strip()
+
+        if int(subprocess.check_output("sudo ip6tables -C FORWARD -o tun+ -j DROP 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -A FORWARD -o tun+ -j DROP", shell=True, universal_newlines=True).strip()
+
+        if int(subprocess.check_output("sudo ip6tables -C FORWARD -i tun+ -j DROP 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -A FORWARD -i tun+ -j DROP", shell=True, universal_newlines=True).strip()
+
+        if int(subprocess.check_output("sudo iptables -C OUTPUT -o tun+ -j DROP 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo iptables -A OUTPUT -o tun+ -j DROP", shell=True, universal_newlines=True).strip()
+
         if "cooja" in serial_dev:
             cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6-cooja -C -D' + serial_delay + ' -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
             self.log.info(cmd)
