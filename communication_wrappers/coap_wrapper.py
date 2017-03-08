@@ -20,11 +20,11 @@ class CoAPWrapper(CommunicationWrapper):
         tunslip_ip_addr = self.control_prefix + control_tunslip_interface_id + prefix_length
         self.log = logging.getLogger('CoAPWrapper.' + str(self.node_id))
 
-        if int(subprocess.check_output("sudo ip6tables -C INPUT -d fd00:c::/24 -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
-            subprocess.check_output("sudo ip6tables -A INPUT -d fd00:c::/24 -j ACCEPT", shell=True, universal_newlines=True).strip()
+        if int(subprocess.check_output("sudo ip6tables -C INPUT -d " + tunslip_ip_addr + " -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -I INPUT 1 -d " + tunslip_ip_addr + " -j ACCEPT", shell=True, universal_newlines=True).strip()
 
-        if int(subprocess.check_output("sudo ip6tables -C OUTPUT -s fd00:c::/24 -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
-            subprocess.check_output("sudo ip6tables -A OUTPUT -s fd00:c::/24 -j ACCEPT", shell=True, universal_newlines=True).strip()
+        if int(subprocess.check_output("sudo ip6tables -C OUTPUT -s " + tunslip_ip_addr + " -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
+            subprocess.check_output("sudo ip6tables -I OUTPUT 1 -s " + tunslip_ip_addr + " -j ACCEPT", shell=True, universal_newlines=True).strip()
 
         if int(subprocess.check_output("sudo ip6tables -C OUTPUT -o tun+ -j DROP 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
             subprocess.check_output("sudo ip6tables -A OUTPUT -o tun+ -j DROP", shell=True, universal_newlines=True).strip()
