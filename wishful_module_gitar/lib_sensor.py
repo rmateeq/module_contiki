@@ -347,7 +347,7 @@ class SensorNodeFactory():
         if motelist_output == "No devices found.":
             # check if there are cooja devices!
             try:
-                cooja_devs = subprocess.check_output("ls -1 /dev/cooja_rm090* 2>/dev/null", shell=True, universal_newlines=True).strip().split("\n")
+                cooja_devs = subprocess.check_output("ls -1v /dev/cooja_rm090* 2>/dev/null", shell=True, universal_newlines=True).strip().split("\n")
                 for i, cooja_dev in enumerate(cooja_devs):
                     platform_class = "RM090"
                     platform_module = "lib_msp430"
