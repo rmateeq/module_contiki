@@ -52,9 +52,9 @@ class CoAPWrapper(CommunicationWrapper):
         self.__rx_thread.daemon = True
         self.__rx_thread.start()
         self.__response = None
-        self.event_resource = None
+        self.event_cb = None
         event_loop = asyncio.get_event_loop()
-        __event_thread = threading.Thread(target=self.__event_server, args=(event_loop, "fd00:c:" + str(node_id) + "::1", 5683))
+        __event_thread = threading.Thread(target=self.__event_server, args=(self, event_loop, "fd00:c:" + str(node_id) + "::1", 5683))
         __event_thread.daemon = True
         __event_thread.start()
 
@@ -83,18 +83,17 @@ class CoAPWrapper(CommunicationWrapper):
             self.log.info("%s", self.slip_process.stdout.readline().strip())
 
     @asyncio.coroutine
-    def coap_event_server(self, future, ip6_address, coap_port):
+    def coap_event_server(self, future, comm_wrapper, ip6_address, coap_port):
         root = resource.Site()
         root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
-        self.event_resource = EventResource()
-        root.add_resource(('wishful_events',), self.event_resource)
+        root.add_resource(('wishful_events',), EventResource(comm_wrapper))
         yield from aiocoap.Context.create_server_context(root, bind=(ip6_address, coap_port))
 
-    def __event_server(self, event_loop, ip6_address, coap_port):
+    def __event_server(self, comm_wrapper, event_loop, ip6_address, coap_port):
         asyncio.set_event_loop(event_loop)
         gevent.sleep(5)
         future = asyncio.Future()
-        asyncio.async(self.coap_event_server(future, ip6_address, coap_port))
+        asyncio.async(self.coap_event_server(future, comm_wrapper, ip6_address, coap_port))
         try:
             if event_loop.is_running():
                 while event_loop.is_running():
@@ -105,7 +104,7 @@ class CoAPWrapper(CommunicationWrapper):
             event_loop.close()
 
     def add_event_callback(self, cb):
-        self.event_resource.add_event_callback(cb)
+        self.event_cb = cb
 
 
 class EventResource(resource.Resource):
@@ -114,18 +113,15 @@ class EventResource(resource.Resource):
     responses, which trigger blockwise transfer.
     """
 
-    def __init__(self):
+    def __init__(self, comm_wrapper):
         super(EventResource, self).__init__()
-        self.event_cb = None
+        self.comm_wrapper = comm_wrapper
 
     @asyncio.coroutine
     def render_post(self, request):
         content = request.payload
-        print("Event from {}, payload {}".format(request.remote.sockaddr[0], content))
-        if self.event_cb not None:
-            self.event_cb(content)
+        # print("Event from {}, payload {}".format(request.remote.sockaddr[0], content))
+        if self.comm_wrapper.event_cb is not None:
+            self.comm_wrapper.event_cb(content)
         response = aiocoap.Message(code=aiocoap.EMPTY, payload="")
         return response
-
-    def add_event_callback(self, cb):
-        self.event_cb = cb

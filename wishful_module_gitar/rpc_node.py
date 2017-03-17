@@ -104,7 +104,7 @@ class RPCNode(SensorNode):
 
     def get_attr_by_key(self, attr_type, attr_key):
         attr = None
-        for connector_name, connector_id in self.protocol_connectors.items():
+        for connector_id in self.get_connector_ids():
             if attr_type == 'parameter':
                 attr = self.get_parameter(connector_id, attr_key)
             elif attr_type == 'event':
@@ -319,10 +319,10 @@ class RPCNode(SensorNode):
         return resp_key_values
 
     def dispatch_event(self, event_msg):
-        event_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(event_msg)
+        event_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(event_msg[0:2])
         event = self.get_attr_by_key("event", event_uid)
         event_value = event.datatype.read_bytes(event_msg[3:])
-        print("RPC node {}: dispatching event {}: {} ".format(self.interface, event_uid, event_value))
+        # print("RPC node {}: dispatching event {}: {} ".format(self.interface, event_uid, event_value))
         for subscriber_cb in event.subscriber_callbacks:
             subscriber_cb(event.name, event_value)
 
