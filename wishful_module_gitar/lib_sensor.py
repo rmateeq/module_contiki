@@ -4,7 +4,7 @@ import abc
 from communication_wrappers.serialdump_wrapper import SerialdumpWrapper
 from communication_wrappers.coap_wrapper import CoAPWrapper
 import csv
-from wishful_module_gitar.lib_gitar import ProtocolConnector, ControlFunction, ControlDataType, Parameter, Event, Measurement
+from wishful_module_gitar.lib_gitar import ProtocolConnector, ControlFunction, ControlDataType, OpaqueControlDataType, Parameter, Event, Measurement
 import traceback
 import sys
 import subprocess
@@ -468,11 +468,24 @@ class SensorNodeFactory():
                 attributes = csv.DictReader(file_rp)
                 for attribute_def in attributes:
                     ctrl_attr = self.__create_control_attribute(int(attribute_def["unique_id"]), attribute_def["unique_name"], attribute_def["category"])
-                    if attribute_def["format"] in node.platform.get_supported_datatypes():
-                        ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], node.platform.get_data_type_format_by_name(attribute_def["format"])))
+                    if attribute_def["sub_format"] == "":
+                        if attribute_def["format"] in node.platform.get_supported_datatypes():
+                            ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], node.platform.get_data_type_format_by_name(attribute_def["format"])))
+                        else:
+                            # ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], attribute_def["format"]))
+                            ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], self.__parse_struct_attribute(node.platform, attribute_def["format"])))
                     else:
-                        # ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], attribute_def["format"]))
-                        ctrl_attr.set_datatype(ControlDataType(attribute_def["endianness"], self.__parse_struct_attribute(node.platform, attribute_def["format"])))
+                        fmt = ""
+                        sub_fmt = ""
+                        if attribute_def["format"] in node.platform.get_supported_datatypes():
+                            fmt = node.platform.get_data_type_format_by_name(attribute_def["format"])
+                        else:
+                            fmt = self.__parse_struct_attribute(node.platform, attribute_def["format"])
+                        if attribute_def["sub_format"] in node.platform.get_supported_datatypes():
+                            sub_fmt = node.platform.get_data_type_format_by_name(attribute_def["sub_format"])
+                        else:
+                            sub_fmt = self.__parse_struct_attribute(node.platform, attribute_def["sub_format"])
+                        ctrl_attr.set_datatype(OpaqueControlDataType(attribute_def["endianness"], fmt, sub_fmt))
                     if ctrl_attr is not None:
                         self.__add_control_attribute(node, ctrl_attr, attribute_def["category"], connector)
                     # print("\"{}\",".format(attribute_def["unique_name"]))

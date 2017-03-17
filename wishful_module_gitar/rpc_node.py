@@ -1,5 +1,6 @@
 import errno
 import struct
+import collections
 from wishful_module_gitar.lib_gitar import ControlDataType, Parameter, Event
 from wishful_module_gitar.lib_sensor import SensorNode
 
@@ -62,36 +63,36 @@ def read_RPCRetHdr(message):
     return RPCRetHdr(con_uid, func_uid, ret_code)
 
 
-class RPCDataType(ControlDataType):
+# class RPCDataType(ControlDataType):
 
-    def __init__(self, uid=0, name="", size=0, endianness="<", fmt=""):
-        ControlDataType.__init__(self, uid, name, size, endianness, fmt)
+#     def __init__(self, uid=0, name="", size=0, endianness="<", fmt=""):
+#         ControlDataType.__init__(self, uid, name, size, endianness, fmt)
 
-    def to_bytes(self, *args):
-        """
-        Transform value(s) to bytes specified by datatype format
-        ToDO work on variable size by using args[0]
-        """
-        try:
-            return struct.pack(self.endianness + self.fmt, *args)
-        except struct.error:
-            self.log.fatal('pack failed')
+#     def to_bytes(self, *args):
+#         """
+#         Transform value(s) to bytes specified by datatype format
+#         ToDO work on variable size by using args[0]
+#         """
+#         try:
+#             return struct.pack(self.endianness + self.fmt, *args)
+#         except struct.error:
+#             self.log.fatal('pack failed')
 
-    def read_bytes(self, buf):
-        """
-        Read value(s) from a buffer. Returns a tuple according to the datatype format
-        ToDO work on variable size by reading first byte
-        """
-        try:
-            return struct.unpack_from(self.endianness + self.fmt, buf)
-        except struct.error:
-            self.log.fatal('unpack failed')
+#     def read_bytes(self, buf):
+#         """
+#         Read value(s) from a buffer. Returns a tuple according to the datatype format
+#         ToDO work on variable size by reading first byte
+#         """
+#         try:
+#             return struct.unpack_from(self.endianness + self.fmt, buf)
+#         except struct.error:
+#             self.log.fatal('unpack failed')
 
-    def has_variable_size(self):
-        if self.size == 0:
-            return True
-        else:
-            return False
+#     def has_variable_size(self):
+#         if self.size == 0:
+#             return True
+#         else:
+#             return False
 
 
 class RPCNode(SensorNode):
@@ -99,6 +100,7 @@ class RPCNode(SensorNode):
     def __init__(self, interface, platform, com_wrapper):
         SensorNode.__init__(self, interface, platform)
         self.com_wrapper = com_wrapper
+        self.com_wrapper.add_event_callback(self.dispatch_event)
 
     def get_attr_by_key(self, attr_type, attr_key):
         attr = None
@@ -143,7 +145,10 @@ class RPCNode(SensorNode):
             attr = self.get_attr_by_key(attr_type, attr_uid)
             if attr is not None:
                 attr_key_value[attr.name] = attr.datatype.read_bytes(b_array[line_ptr:])
-                line_ptr += attr.datatype.size
+                if attr.datatype.has_variable_size():
+                    line_ptr += attr.datatype.calcsize(*attr_key_value[attr.name])
+                else:
+                    line_ptr += attr.datatype.size
         return attr_key_value
 
     def create_attr_key_error_from_bytearray(self, attr_type, num_attr, b_array):
@@ -178,10 +183,16 @@ class RPCNode(SensorNode):
         for param in parameter_list:
             request_message = bytearray()
             dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
-            request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size + param.datatype.size).to_bytes())
+            if param.datatype.has_variable_size():
+                request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size + param.datatype.calcsize(*param_key_values[param.name])).to_bytes())
+            else:
+                request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size + param.datatype.size).to_bytes())
             request_message.extend(dt_uid.to_bytes(param.uid))
             # request_message.extend(ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8')).to_bytes(param.datatype.size))
-            request_message.extend(param.datatype.to_bytes(param_key_values[param.name]))
+            if isinstance(param_key_values[param.name], collections.Sequence):
+                request_message.extend(param.datatype.to_bytes(*param_key_values[param.name]))
+            else:
+                request_message.extend(param.datatype.to_bytes(param_key_values[param.name]))
             response_message = self.com_wrapper.send(request_message)
             line_ptr = 0
             ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
@@ -217,7 +228,6 @@ class RPCNode(SensorNode):
             dt_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
             request_message.extend(RPCFuncHdr(generic_connector.uid, f.uid, f.num_of_args(), dt_uid.size).to_bytes())
             request_message.extend(dt_uid.to_bytes(param.uid))
-            # print(request_message)
             response_message = self.com_wrapper.send(request_message)
             line_ptr = 0
             ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
@@ -226,7 +236,10 @@ class RPCNode(SensorNode):
                 # p_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(response_message[line_ptr:])
                 # line_ptr += 2
                 resp_key_values[param.name] = param.datatype.read_bytes(response_message[line_ptr:])
-                line_ptr += param.datatype.size
+                if param.datatype.has_variable_size():
+                    line_ptr += param.datatype.calcsize(*resp_key_values[param.name])
+                else:
+                    line_ptr += param.datatype.size
         return resp_key_values
 
     def read_measurements2(self, measurement_list):
@@ -259,7 +272,10 @@ class RPCNode(SensorNode):
                 # p_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(response_message[line_ptr:])
                 # line_ptr += 2
                 resp_key_values[measurement.name] = measurement.datatype.read_bytes(response_message[line_ptr:])
-                line_ptr += measurement.datatype.size
+                if measurement.datatype.has_variable_size():
+                    line_ptr += measurement.datatype.calcsize(*resp_key_values[measurement.name])
+                else:
+                    line_ptr += measurement.datatype.size
         return resp_key_values
 
     def subscribe_events2(self, event_list, event_callback, event_duration):
@@ -301,6 +317,14 @@ class RPCNode(SensorNode):
                 event.subscriber_callbacks.append(event_callback)
                 # line_ptr += event.datatype.size
         return resp_key_values
+
+    def dispatch_event(self, event_msg):
+        event_uid = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16')).read_bytes(event_msg)
+        event = self.get_attr_by_key("event", event_uid)
+        event_value = event.datatype.read_bytes(event_msg[3:])
+        print("RPC node {}: dispatching event {}: {} ".format(self.interface, event_uid, event_value))
+        for subscriber_cb in event.subscriber_callbacks:
+            subscriber_cb(event.name, event_value)
 
     def reset(self):
         pass

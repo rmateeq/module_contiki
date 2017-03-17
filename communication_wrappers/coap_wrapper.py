@@ -6,7 +6,8 @@ import threading
 
 import asyncio
 import aiocoap
-# import aiocoap.resource as resource
+import aiocoap.resource as resource
+import gevent
 
 
 class CoAPWrapper(CommunicationWrapper):
@@ -51,11 +52,11 @@ class CoAPWrapper(CommunicationWrapper):
         self.__rx_thread.daemon = True
         self.__rx_thread.start()
         self.__response = None
-        # root = resource.Site()
-        # root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
-        # root.add_resource(('wishful_events',), EventResource())
-        # asyncio.Task(aiocoap.Context.create_server_context(root))
-        # asyncio.get_event_loop().run_forever()
+        self.event_resource = None
+        event_loop = asyncio.get_event_loop()
+        __event_thread = threading.Thread(target=self.__event_server, args=(event_loop, "fd00:c:" + str(node_id) + "::1", 5683))
+        __event_thread.daemon = True
+        __event_thread.start()
 
     @asyncio.coroutine
     def coap_send(self, payload):
@@ -81,22 +82,50 @@ class CoAPWrapper(CommunicationWrapper):
         while not stop_event.is_set():
             self.log.info("%s", self.slip_process.stdout.readline().strip())
 
+    @asyncio.coroutine
+    def coap_event_server(self, future, ip6_address, coap_port):
+        root = resource.Site()
+        root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
+        self.event_resource = EventResource()
+        root.add_resource(('wishful_events',), self.event_resource)
+        yield from aiocoap.Context.create_server_context(root, bind=(ip6_address, coap_port))
 
-# class EventResource(resource.Resource):
-#     """
-#     Example resource which supports GET and PUT methods. It sends large
-#     responses, which trigger blockwise transfer.
-#     """
+    def __event_server(self, event_loop, ip6_address, coap_port):
+        asyncio.set_event_loop(event_loop)
+        gevent.sleep(5)
+        future = asyncio.Future()
+        asyncio.async(self.coap_event_server(future, ip6_address, coap_port))
+        try:
+            if event_loop.is_running():
+                while event_loop.is_running():
+                    gevent.sleep(1)
+            else:
+                event_loop.run_forever()
+        finally:
+            event_loop.close()
 
-#     def __init__(self):
-#         super(EventResource, self).__init__()
+    def add_event_callback(self, cb):
+        self.event_resource.add_event_callback(cb)
 
-#     async def render_get(self, request):
-#         return aiocoap.Message(payload=self.content)
 
-#     async def render_put(self, request):
-#         print('PUT payload: %s' % request.payload)
-#         self.content = request.payload
-#         payload = ("I've accepted the new payload. You may inspect it here in "\
-#                 "Python's repr format:\n\n%r"%self.content).encode('utf8')
-#         return aiocoap.Message(payload=payload)
+class EventResource(resource.Resource):
+    """
+    Example resource which supports GET and PUT methods. It sends large
+    responses, which trigger blockwise transfer.
+    """
+
+    def __init__(self):
+        super(EventResource, self).__init__()
+        self.event_cb = None
+
+    @asyncio.coroutine
+    def render_post(self, request):
+        content = request.payload
+        print("Event from {}, payload {}".format(request.remote.sockaddr[0], content))
+        if self.event_cb not None:
+            self.event_cb(content)
+        response = aiocoap.Message(code=aiocoap.EMPTY, payload="")
+        return response
+
+    def add_event_callback(self, cb):
+        self.event_cb = cb

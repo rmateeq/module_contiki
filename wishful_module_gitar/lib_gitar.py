@@ -17,7 +17,7 @@ class ControlDataType():
             self.endianness = '>'
 
         # self.struct_fmt = struct.Struct(self.endianness + self.fmt)
-        self.size = struct.calcsize(fmt)
+        self.size = struct.calcsize(self.fmt)
 
     def to_bytes(self, *val):
         """
@@ -41,9 +41,60 @@ class ControlDataType():
         return tpl
 
     def has_variable_size(self):
-        if self.size == 0:
-            return True
         return False
+
+
+class OpaqueControlDataType(ControlDataType):
+
+    def __init__(self, endianness="", fmt="", sub_fmt=""):
+        super(OpaqueControlDataType, self).__init__(endianness, fmt)
+        self.sub_fmt = sub_fmt
+
+    def calcsize(self, *val):
+        size = struct.calcsize(self.fmt)
+        offset = len(self.fmt)
+        while offset < len(val):
+            offset += len(self.sub_fmt)
+            size += struct.calcsize(self.sub_fmt)
+        return size
+
+    def to_bytes(self, *val):
+        """
+        Transform value(s) to bytes specified by datatype format
+        """
+        tmp_fmt = self.fmt
+        tmp_subfmt = self.sub_fmt
+        # value = tuple(*val)
+        if ControlDataType.to_string_byteorder[self.endianness] != sys.byteorder:
+            tmp_fmt = self.endianness + self.fmt
+            tmp_subfmt = self.endianness + self.sub_fmt
+        b_array = struct.pack(tmp_fmt, *val[0:len(self.fmt)])
+        offset = len(self.fmt)
+        while offset < len(val):
+            b_array = b_array + struct.pack(tmp_subfmt, *val[offset:offset + len(self.sub_fmt)])
+            offset += len(self.sub_fmt)
+        if offset != len(val):
+            print("Too many el for dynamic struct!!")
+        return b_array
+
+    def read_bytes(self, buf):
+        """
+        Read value(s) from a buffer. Returns a tuple according to the datatype format
+        """
+        tmp_fmt = self.fmt
+        tmp_subfmt = self.sub_fmt
+        if ControlDataType.to_string_byteorder[self.endianness] != sys.byteorder:
+            tmp_fmt = self.endianness + self.fmt
+            tmp_subfmt = self.endianness + self.sub_fmt
+        tpl = struct.unpack(tmp_fmt, buf[0:struct.calcsize(self.fmt)])
+        offset = struct.calcsize(self.fmt)
+        while offset < len(buf):
+            tpl = tpl + struct.unpack(tmp_subfmt, buf[offset:offset + struct.calcsize(self.sub_fmt)])
+            offset += struct.calcsize(self.sub_fmt)
+        return tpl
+
+    def has_variable_size(self):
+        return True
 
 
 class ControlAttribute():
