@@ -53,13 +53,14 @@ class CoAPWrapper(CommunicationWrapper):
         self.__rx_thread.start()
         self.__response = None
         self.event_cb = None
-        event_loop = asyncio.get_event_loop()
-        __event_thread = threading.Thread(target=self.__event_server, args=(self, event_loop, "fd00:c:" + str(node_id) + "::1", 5683))
+        self.event_loop = asyncio.get_event_loop()
+        __event_thread = threading.Thread(target=self.__event_server, args=(self, self.event_loop, "fd00:c:" + str(node_id) + "::1", 5683))
         __event_thread.daemon = True
         __event_thread.start()
 
     @asyncio.coroutine
-    def coap_send(self, payload):
+    def coap_send(self, send_loop, payload):
+        asyncio.set_event_loop(send_loop)
         context = yield from aiocoap.Context.create_client_context()
         request = aiocoap.Message(code=aiocoap.POST, payload=payload)
         request.set_request_uri('coap://[' + self.control_prefix + '2]/wishful_funcs')
@@ -68,9 +69,28 @@ class CoAPWrapper(CommunicationWrapper):
         self.__response = response.payload
         yield from context.shutdown()
 
+    def async_send(self, payload):
+        
+
+        send_task = asyncio.async(self.coap_send(payload))
+        asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
+        while self.__response is None:
+            gevent.sleep(0.1)
+        return self.__response
+
     def send(self, payload):
         if True:
-            asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
+            send_loop = asyncio.new_event_loop()
+            # __event_thread = threading.Thread(target=self.async_send, args=(payload,))
+            # __event_thread.start()
+            # __event_thread.join()
+            # # send_task = asyncio.async(self.coap_send(payload))
+            # yield from asyncio.wait_for(send_task)
+            send_loop.run_until_complete(self.coap_send(send_loop, payload))
+            # asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
+            # while self.__response is None:
+            #     gevent.sleep(0.1)
+            print(self.__response)
             return self.__response
         # else:
         #     client = HelperClient(server=(self.control_prefix + "2", 5683))
@@ -83,7 +103,7 @@ class CoAPWrapper(CommunicationWrapper):
             self.log.info("%s", self.slip_process.stdout.readline().strip())
 
     @asyncio.coroutine
-    def coap_event_server(self, future, comm_wrapper, ip6_address, coap_port):
+    def coap_event_server(self, comm_wrapper, ip6_address, coap_port):
         root = resource.Site()
         root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
         root.add_resource(('wishful_events',), EventResource(comm_wrapper))
@@ -92,8 +112,7 @@ class CoAPWrapper(CommunicationWrapper):
     def __event_server(self, comm_wrapper, event_loop, ip6_address, coap_port):
         asyncio.set_event_loop(event_loop)
         gevent.sleep(5)
-        future = asyncio.Future()
-        asyncio.async(self.coap_event_server(future, comm_wrapper, ip6_address, coap_port))
+        send_task = asyncio.async(self.coap_event_server(comm_wrapper, ip6_address, coap_port))
         try:
             if event_loop.is_running():
                 while event_loop.is_running():

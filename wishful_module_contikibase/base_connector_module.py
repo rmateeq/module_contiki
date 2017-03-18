@@ -77,7 +77,7 @@ class BaseConnectorModule(wishful_module.AgentModule):
         param_keys = [parameter_name]
         node = self.node_factory.get_node(self.interface)
         parameter_list = self.create_attribute_list_from_keys(node, param_keys, "parameter")
-        ret = node.set_parameters(parameter_list, param_keys)
+        ret = node.get_parameters(parameter_list)
         if type(ret) == dict:
             return ret[parameter_name]
         else:
