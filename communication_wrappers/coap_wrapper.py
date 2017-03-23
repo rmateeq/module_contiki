@@ -94,7 +94,6 @@ class CoAPWrapper(CommunicationWrapper):
 
     @asyncio.coroutine
     def coap_event_server(self, comm_wrapper, ip6_address, coap_port):
-        asyncio.set_event_loop(self.event_loop)
         root = resource.Site()
         root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
         root.add_resource(('wishful_events',), EventResource(comm_wrapper))
