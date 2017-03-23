@@ -53,8 +53,8 @@ class CoAPWrapper(CommunicationWrapper):
         self.__rx_thread.start()
         self.__response = None
         self.event_cb = None
-        self.event_loop = asyncio.get_event_loop()
-        __event_thread = threading.Thread(target=self.__event_server, args=(self, self.event_loop, "fd00:c:" + str(node_id) + "::1", 5683))
+        self.event_loop = asyncio.new_event_loop()
+        __event_thread = threading.Thread(target=self.__event_server, args=(self, "fd00:c:" + str(node_id) + "::1", 5683))
         __event_thread.daemon = True
         __event_thread.start()
 
@@ -69,15 +69,6 @@ class CoAPWrapper(CommunicationWrapper):
         self.__response = response.payload
         yield from context.shutdown()
 
-    def async_send(self, payload):
-        
-
-        send_task = asyncio.async(self.coap_send(payload))
-        asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
-        while self.__response is None:
-            gevent.sleep(0.1)
-        return self.__response
-
     def send(self, payload):
         if True:
             send_loop = asyncio.new_event_loop()
@@ -90,7 +81,6 @@ class CoAPWrapper(CommunicationWrapper):
             # asyncio.get_event_loop().run_until_complete(self.coap_send(payload))
             # while self.__response is None:
             #     gevent.sleep(0.1)
-            print(self.__response)
             return self.__response
         # else:
         #     client = HelperClient(server=(self.control_prefix + "2", 5683))
@@ -104,23 +94,25 @@ class CoAPWrapper(CommunicationWrapper):
 
     @asyncio.coroutine
     def coap_event_server(self, comm_wrapper, ip6_address, coap_port):
+        asyncio.set_event_loop(self.event_loop)
         root = resource.Site()
         root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
         root.add_resource(('wishful_events',), EventResource(comm_wrapper))
         yield from aiocoap.Context.create_server_context(root, bind=(ip6_address, coap_port))
 
-    def __event_server(self, comm_wrapper, event_loop, ip6_address, coap_port):
-        asyncio.set_event_loop(event_loop)
+    def __event_server(self, comm_wrapper, ip6_address, coap_port):
+        asyncio.set_event_loop(self.event_loop)
         gevent.sleep(5)
-        send_task = asyncio.async(self.coap_event_server(comm_wrapper, ip6_address, coap_port))
+        send_task = asyncio.async(self.coap_event_server(comm_wrapper, ip6_address, coap_port), loop=self.event_loop)
+        print(send_task)
         try:
-            if event_loop.is_running():
-                while event_loop.is_running():
-                    gevent.sleep(1)
+            while self.event_loop.is_running():
+                gevent.sleep(1)
             else:
-                event_loop.run_forever()
+                self.event_loop.run_forever()
         finally:
-            event_loop.close()
+            print("ended")
+            self.event_loop.close()
 
     def add_event_callback(self, cb):
         self.event_cb = cb
