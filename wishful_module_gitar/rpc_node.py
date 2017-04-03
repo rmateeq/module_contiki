@@ -324,7 +324,7 @@ class RPCNode(SensorNode):
         event_value = event.datatype.read_bytes(event_msg[3:])
         print("RPC node {}: dispatching event {}: {} ".format(self.interface, event_uid, event_value))
         for subscriber_cb in event.subscriber_callbacks:
-            subscriber_cb(event.name, event_value)
+            subscriber_cb(self.interface, event.name, event_value)
 
     def reset(self):
         pass
