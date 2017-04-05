@@ -374,7 +374,7 @@ class SensorNodeFactory():
                     self.log.info("cc2538-bsl.py  -p %s -a 0x00202000", mote_dev)
                     # compl_proc = subprocess.run(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"], stdout=subprocess.PIPE)
                     # self.log.info(compl_proc.stdout)
-                    out = subprocess.check_output(["sudo ../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
+                    out = subprocess.check_output(["sudo", "../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
                     self.log.info(out)
                     self.log.info("Found Zoul on %s", mote_dev)
                     gevent.sleep(2)
