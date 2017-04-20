@@ -358,11 +358,14 @@ class SensorNodeFactory():
             except subprocess.CalledProcessError:
                 self.log.fatal("There are no sensor nodes attached to this machine, and there are no cooja devices, cannot start!!!")
         else:
-            wilab_nodes_output = subprocess.check_output(["ls /dev/rm090"], universal_newlines=True).strip()
+            wilab_nodes_output = subprocess.check_output("ls /dev/rm090", shell=True, universal_newlines=True).strip()
             if "/dev/rm090" in wilab_nodes_output:
                 platform_class = "RM090"
                 platform_module = "lib_msp430"
                 com_wrapper = CoAPWrapper(1, "/dev/rm090", "115200")  # Jan: 500 serial delay for taisc (writing to serial while in interrupt causes issues)
+                platform = SensorPlatform.create_instance(platform_module, platform_class)
+                interface = "lowpan0"
+                self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
             else:
                 for line in motelist_output.split("\n"):
                     mote_description = line.split(",")[2]
