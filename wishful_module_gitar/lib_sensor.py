@@ -358,38 +358,46 @@ class SensorNodeFactory():
             except subprocess.CalledProcessError:
                 self.log.fatal("There are no sensor nodes attached to this machine, and there are no cooja devices, cannot start!!!")
         else:
-            for line in motelist_output.split("\n"):
-                mote_description = line.split(",")[2]
-                mote_dev = line.split(",")[1]
-                mote_dev_id = ""
-                for char in mote_dev:
-                    if char.isdigit():
-                        mote_dev_id = mote_dev_id + char
-                interface = "lowpan" + mote_dev_id
-                mote_dev_id = int(mote_dev_id) + 1
-                if "Zolertia RE-Mote" in mote_description:
-                    # device is a remote
-                    platform_class = "Zoul"
-                    platform_module = "lib_arm_cortex_m"
-                    self.log.info("cc2538-bsl.py  -p %s -a 0x00202000", mote_dev)
-                    # compl_proc = subprocess.run(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"], stdout=subprocess.PIPE)
-                    # self.log.info(compl_proc.stdout)
-                    out = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
-                    self.log.info(out)
-                    self.log.info("Found Zoul on %s", mote_dev)
-                    gevent.sleep(2)
-                    com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200")
-                elif "RM090" in mote_description:
-                    # defince is a RM090
-                    platform_class = "RM090"
-                    platform_module = "lib_msp430"
-                    self.log.info("Found RM090 on %s", mote_dev)
-                    com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200", "500")
-                else:
-                    self.log.info("skipping unknown node type")
-                    break
+            wilab_nodes_output = subprocess.check_output(["ls /dev/rm090"], universal_newlines=True).strip()
+            if "/dev/rm090" in wilab_nodes_output:
+                platform_class = "RM090"
+                platform_module = "lib_msp430"
+                com_wrapper = CoAPWrapper(1, "/dev/rm090", "115200")  # Jan: 500 serial delay for taisc (writing to serial while in interrupt causes issues)
                 platform = SensorPlatform.create_instance(platform_module, platform_class)
-                self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
+                self.__nodes[interface] = RPCNode("lowpan0", platform, com_wrapper)
+            else:
+                for line in motelist_output.split("\n"):
+                    mote_description = line.split(",")[2]
+                    mote_dev = line.split(",")[1]
+                    mote_dev_id = ""
+                    for char in mote_dev:
+                        if char.isdigit():
+                            mote_dev_id = mote_dev_id + char
+                    interface = "lowpan" + mote_dev_id
+                    mote_dev_id = int(mote_dev_id) + 1
+                    if "Zolertia RE-Mote" in mote_description:
+                        # device is a remote
+                        platform_class = "Zoul"
+                        platform_module = "lib_arm_cortex_m"
+                        self.log.info("cc2538-bsl.py  -p %s -a 0x00202000", mote_dev)
+                        # compl_proc = subprocess.run(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"], stdout=subprocess.PIPE)
+                        # self.log.info(compl_proc.stdout)
+                        out = subprocess.check_output(["../../agent_modules/contiki/communication_wrappers/bin/cc2538-bsl.py", "-p", mote_dev, "-a", "0x00202000"])
+                        self.log.info(out)
+                        self.log.info("Found Zoul on %s", mote_dev)
+                        gevent.sleep(2)
+                        com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200")
+                    elif "RM090" in mote_description:
+                        # defince is a RM090
+                        platform_class = "RM090"
+                        platform_module = "lib_msp430"
+                        self.log.info("Found RM090 on %s", mote_dev)
+                        com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200", "500")
+                    else:
+                        self.log.info("skipping unknown node type")
+                        break
+                    platform = SensorPlatform.create_instance(platform_module, platform_class)
+                    self.__nodes[interface] = RPCNode(interface, platform, com_wrapper)
 
     def create_nodes(self, config_file, supported_interfaces):
         config = ConfigParser.ConfigParser()
