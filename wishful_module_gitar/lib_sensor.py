@@ -358,7 +358,10 @@ class SensorNodeFactory():
             except subprocess.CalledProcessError:
                 self.log.fatal("There are no sensor nodes attached to this machine, and there are no cooja devices, cannot start!!!")
         else:
-            wilab_nodes_output = subprocess.check_output(["ls /dev/rm090"], universal_newlines=True).strip()
+            try:
+                wilab_nodes_output = subprocess.check_output(["ls /dev/rm090"], universal_newlines=True).strip()
+            except FileNotFoundError:
+                wilab_nodes_output = ""
             if "/dev/rm090" in wilab_nodes_output:
                 platform_class = "RM090"
                 platform_module = "lib_msp430"
