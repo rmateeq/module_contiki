@@ -325,3 +325,9 @@ class ProtocolConnector():
 
     def num_of_measurements(self):
         return len(self.__measurements)
+
+    def print_attributes(self):
+        print("parameters: {}".format(self.__params.keys()))
+        print("measurements: {}".format(self.__measurements.keys()))
+        print("events: {}".format(self.__events.keys()))
+        print("functions: {}".format(self.__funcs.keys()))

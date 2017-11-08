@@ -252,6 +252,12 @@ class SensorNode():
             if con is not None:
                 return con.num_of_measurements()
 
+    def print_connectors(self):
+        for name, connector in self.__connectors.items():
+            print("{}:".format(name))
+            connector.print_attributes()
+
+
     @abc.abstractmethod
     def set_parameters(self, param_list, param_key_values):
         pass
