@@ -509,7 +509,7 @@ class SensorNodeFactory():
                         self.__add_control_attribute(node, ctrl_attr, attribute_def["category"], connector)
                     # print("\"{}\",".format(attribute_def["unique_name"]))
             except Exception as e:
-                self.log.fatal("Could not read parameters %s from %s error: %s" % (attribute_def, csv_filename, e))
+                self.log.fatal("Could not read parameters from %s error: %s" % (csv_filename, e))
 
     def __parse_struct_param(self, node_platform, fmt_specifier):
         struct_fmt = ""
