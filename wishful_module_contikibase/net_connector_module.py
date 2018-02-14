@@ -72,7 +72,7 @@ class NetConnectorModule(BaseConnectorModule):
         node = self.node_factory.get_node(self.interface)
         try:
             event_list = self.create_attribute_list_from_keys(node, event_key_list, "event")
-            return node.add_events_subscriber(event_list, event_callback, event_duration)
+            return node.subscribe_events(event_list, event_callback, event_duration)
         except:
             traceback.print_exc(file=sys.stdout)
 
