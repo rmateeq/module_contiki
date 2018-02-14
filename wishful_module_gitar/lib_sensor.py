@@ -405,7 +405,7 @@ class SensorNodeFactory():
                         com_wrapper = CoAPWrapper(mote_dev_id, mote_dev, "115200", "500")
                     else:
                         self.log.info("skipping unknown node type")
-                        break
+                        continue                        
                     platform = SensorPlatform.create_instance(platform_module, platform_class)
                     self.__nodes[interface] = RPCNode("lowpan0", platform, com_wrapper)
          
