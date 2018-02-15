@@ -46,11 +46,11 @@ class RadioConnectorModule(BaseConnectorModule):
 
     def get_radio_measurements_periodic_worker(self, node, measurement_list, collect_period, report_period, num_iterations, report_callback):
         num_collects_report = report_period / collect_period
-        for i in xrange(0, num_iterations):
+        for i in range(0, int(num_iterations)):
             measurement_report = {}
             for measurement in measurement_list:
                 measurement_report[measurement.name] = []
-            for i in xrange(0, num_collects_report):
+            for i in range(0, int(num_collects_report)):
                 gevent.sleep(collect_period)
                 ret = node.read_measurements(measurement_list)
                 for key in ret.keys():
