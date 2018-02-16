@@ -50,7 +50,7 @@ class RadioConnectorModule(BaseConnectorModule):
             measurement_report = {}
             for measurement in measurement_list:
                 measurement_report[measurement.name] = []
-            for i in range(0, int(num_collects_report)):
+            for j in range(0, int(num_collects_report)):
                 gevent.sleep(collect_period)
                 ret = node.read_measurements(measurement_list)
                 for key in ret.keys():
