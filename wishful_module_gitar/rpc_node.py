@@ -318,7 +318,7 @@ class RPCNode(SensorNode):
                 # line_ptr += event.datatype.size
         return resp_key_values
 
-    def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes):
+    def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes=[]):
         gitar_connector = self.get_connector("gitar_connector")
         f = gitar_connector.get_function("gitar_allocate_memory")
         request_message = bytearray()

@@ -3,6 +3,7 @@ from wishful_module_gitar.lib_sensor import SensorNodeFactory
 import wishful_upis as upis
 import traceback
 import sys
+from .base_connector_module import BaseConnectorModule
 
 __author__ = "Peter Ruckebusch"
 __copyright__ = "Copyright (c) 2016, Universiteit Gent, IBCN, iMinds"
@@ -11,7 +12,7 @@ __email__ = "peter.ruckebusch@intec.ugent.be"
 
 
 @wishful_module.build_module
-class GitarEngine(wishful_module.AgentModule):
+class GitarEngine(BaseConnectorModule):
 
     def __init__(self, **kwargs):
         super(GitarEngine, self).__init__()
@@ -52,7 +53,7 @@ class GitarEngine(wishful_module.AgentModule):
         return -1
 
     @wishful_module.bind_function(upis.mgmt.allocate_memory)
-    def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes):
+    def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes=[]):
         """This function allocates memory on one or more nodes.
         The allocated memory will be used to store the software module and/or radio program.
         This step is required when using an offline ELF linker because the exact memory location must be known upfront.
@@ -74,7 +75,7 @@ class GitarEngine(wishful_module.AgentModule):
             traceback.print_exc(file=sys.stdout)
 
     @wishful_module.bind_function(upis.mgmt.disseminate_software_module)
-    def disseminate_software_module(self, module_id, elf_object_file, nodes, block_size=64):
+    def disseminate_software_module(self, module_id, elf_program_file, block_size=64, nodes):
         """This function allows disseminating a software module (i.e. ELF object file) to one or more nodes.
 
         Args:
@@ -91,7 +92,7 @@ class GitarEngine(wishful_module.AgentModule):
         try:
             block_index = 0
             block_offset = 0
-            with open(elf_object_file, "rb") as binary_file:
+            with open(elf_program_file, "rb") as binary_file:
                 bin_string = binary_file.read()
                 while len(bin_string) > block_size:
                     # err = node.forward_rpc("gitar_connector", "gitar_store_file", block_index, block_size, block_offset, bin_string[:block_size])
@@ -111,7 +112,7 @@ class GitarEngine(wishful_module.AgentModule):
             traceback.print_exc(file=sys.stdout)
 
     @wishful_module.bind_function(upis.mgmt.install_software_module)
-    def install_software_module(self, module_id, nodes):
+    def install_software_module(self, module_id, nodes=[]):
         """This function allows installing a previously disseminated software module on one or more nodes.
 
         Args:
@@ -129,7 +130,7 @@ class GitarEngine(wishful_module.AgentModule):
             traceback.print_exc(file=sys.stdout)
 
     @wishful_module.bind_function(upis.mgmt.activate_software_module)
-    def activate_software_module(self, module_id, nodes):
+    def activate_software_module(self, module_id, nodes=[]):
         """This function allows activating a previously installed software module on one or more nodes.
 
         Args:
