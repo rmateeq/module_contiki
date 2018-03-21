@@ -47,6 +47,7 @@ class CoAPWrapper(CommunicationWrapper):
             cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6 -C -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
             self.log.info(cmd)
             self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            # self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-v5', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.__thread_stop = threading.Event()
         self.__rx_thread = threading.Thread(target=self.__serial_listen, args=(self.__thread_stop,))
         self.__rx_thread.daemon = True
@@ -65,7 +66,7 @@ class CoAPWrapper(CommunicationWrapper):
         request = aiocoap.Message(code=aiocoap.POST, payload=payload)
         request.set_request_uri('coap://[' + self.control_prefix + '2]/wishful_funcs')
         response = yield from context.request(request).response
-        # self.log.info("Result: %s\n%r" % (response.code, response.payload))
+        # self.log.info("Result: %s\n%s\n%r" % (response.code, response, response.payload))
         self.__response = response.payload
         yield from context.shutdown()
 

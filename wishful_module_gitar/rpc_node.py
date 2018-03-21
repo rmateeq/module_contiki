@@ -319,12 +319,12 @@ class RPCNode(SensorNode):
         return resp_key_values
 
     def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes=[]):
-        gitar_connector = self.get_connector("gitar_connector")
+        gitar_connector = self.get_connector("generic_connector")
         f = gitar_connector.get_function("gitar_allocate_memory")
         request_message = bytearray()
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
         dt_uint32 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT32'))
-        arg_len = dt_uint16.size + dt_uint16.size + dt_uint16.size + dt_uint16.size * len(nodes)
+        arg_len = dt_uint16.size + dt_uint16.size + dt_uint16.size + dt_uint16.size + dt_uint16.size * len(nodes)
         request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), arg_len).to_bytes())
         request_message.extend(dt_uint16.to_bytes(module_id))
         request_message.extend(dt_uint16.to_bytes(elf_file_size))
@@ -336,6 +336,9 @@ class RPCNode(SensorNode):
         response_message = self.com_wrapper.send(request_message)
         ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
         line_ptr += len(ret_hdr)
+        # print(response_message)
+        # print(ret_hdr)
+        # print(line_ptr)
         if ret_hdr.ret_code == 0:
             rom_addr = dt_uint32.read_bytes(response_message[line_ptr:])
             line_ptr += dt_uint32.size
@@ -350,7 +353,7 @@ class RPCNode(SensorNode):
         return -1
 
     def store_file(self, module_id, block_index, block_size, block_offset, block_data):
-        gitar_connector = self.get_connector("gitar_connector")
+        gitar_connector = self.get_connector("generic_connector")
         f = gitar_connector.get_function("gitar_store_file")
         request_message = bytearray()
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
@@ -373,8 +376,8 @@ class RPCNode(SensorNode):
             return err
         return -1
 
-    def disseminate_file(self, module_id, nodes):
-        gitar_connector = self.get_connector("gitar_connector")
+    def disseminate_file(self, module_id, nodes=[]):
+        gitar_connector = self.get_connector("generic_connector")
         f = gitar_connector.get_function("gitar_disseminate_file")
         request_message = bytearray()
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
@@ -393,7 +396,7 @@ class RPCNode(SensorNode):
         return -1
 
     def install_module(self, module_id, nodes):
-        gitar_connector = self.get_connector("gitar_connector")
+        gitar_connector = self.get_connector("generic_connector")
         f = gitar_connector.get_function("gitar_install_module")
         request_message = bytearray()
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
@@ -412,7 +415,7 @@ class RPCNode(SensorNode):
         return -1
 
     def activate_module(self, module_id, nodes):
-        gitar_connector = self.get_connector("gitar_connector")
+        gitar_connector = self.get_connector("generic_connector")
         f = gitar_connector.get_function("gitar_activate_module")
         request_message = bytearray()
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
