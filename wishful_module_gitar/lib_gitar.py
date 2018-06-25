@@ -35,7 +35,7 @@ class ControlDataType():
         tmp_fmt = self.fmt
         if ControlDataType.to_string_byteorder[self.endianness] != sys.byteorder:
             tmp_fmt = self.endianness + self.fmt
-        tpl = struct.unpack(tmp_fmt, buf)
+        tpl = struct.unpack_from(tmp_fmt, buf)
         if len(tpl) == 1:
             tpl = tpl[0]
         return tpl

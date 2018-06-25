@@ -48,8 +48,16 @@ class GenericConnector(BaseConnectorModule):
         """
         return -1
 
+    @wishful_module.bind_function(upis.mgmt.prepare_ota_update)
+    def prepare_ota_update(self, nodes=[]):
+        node = self.node_factory.get_node(self.interface)
+        try:
+            return node.allocate_memory(nodes)
+        except Exception:
+            traceback.print_exc(file=sys.stdout)
+
     @wishful_module.bind_function(upis.mgmt.allocate_memory)
-    def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes=[]):
+    def allocate_memory(self, elf_file_size, rom_size, ram_size):
         """This function allocates memory on one or more nodes.
         The allocated memory will be used to store the software module and/or radio program.
         This step is required when using an offline ELF linker because the exact memory location must be known upfront.
@@ -58,20 +66,18 @@ class GenericConnector(BaseConnectorModule):
             elf_file_size (int): Size of the ELF file that needs to be stored.
             rom_size (int): ROM usage of the code contained in the ELF file.
             ram_size (int): RAM usage of the code contained in the ELF file.
-            nodes (list[int]): List of node IDs that need to allocate_memory.
 
         Returns:
             AllocatedMemoryBlock: Returns the allocated ROM and RAM addressess, repeats the sizes.
         """
         node = self.node_factory.get_node(self.interface)
         try:
-            return node.allocate_memory(module_id, elf_file_size, rom_size, ram_size, nodes)
-            # return node.forward_rpc("gitar_connector", "gitar_allocate_memory", rom_size, ram_size, text_offset, nodes)
+            return node.allocate_memory(elf_file_size, rom_size, ram_size)
         except Exception:
             traceback.print_exc(file=sys.stdout)
 
-    @wishful_module.bind_function(upis.mgmt.disseminate_software_module)
-    def disseminate_software_module(self, module_id, elf_program_file, block_size=64, nodes=[]):
+    @wishful_module.bind_function(upis.mgmt.store_file)
+    def store_file(self, is_last_block, block_size, block_offset, block_data):
         """This function allows disseminating a software module (i.e. ELF object file) to one or more nodes.
 
         Args:
@@ -86,59 +92,45 @@ class GenericConnector(BaseConnectorModule):
         # first we need to store the ELF object file on the node
         # for this purpose we need to divide the file in chunks and send the chunks one by one
         try:
-            block_index = 0
-            block_offset = 0
-            with open(elf_program_file, "rb") as binary_file:
-                bin_string = binary_file.read()
-                while len(bin_string) > block_size:
-                    # err = node.forward_rpc("gitar_connector", "gitar_store_file", block_index, block_size, block_offset, bin_string[:block_size])
-                    err = node.store_file(module_id, block_index, block_size, block_offset, bin_string[:block_size])
-                    if err != 0:
-                        print("Error storing block {}, offset {}, size {}".format(block_index, block_offset, block_size))
-                    block_index += 1
-                    block_offset += block_size
-                    bin_string = bin_string[block_size:]
-                # err = node.forward_rpc("gitar_connector", "gitar_store_file", block_index, len(bin_string), block_offset, bin_string)
-                err = node.store_file(module_id, block_index, len(bin_string), block_offset, bin_string)
-                if err != 0:
-                    print("Error storing block {}, offset {}, size {}".format(block_index, block_offset, block_size))
-            return node.disseminate_file(module_id, nodes)
-            # return node.forward_rpc("gitar_connector", "gitar_disseminate_file", nodes)
+            return node.store_file(is_last_block, block_size, block_offset, block_data)
+        except Exception:
+            traceback.print_exc(file=sys.stdout)
+
+    @wishful_module.bind_function(upis.mgmt.disseminate_software_module)
+    def disseminate_software_module(self):
+        """This function allows disseminating a software module (i.e. ELF object file) to one or more nodes.
+
+        Returns:
+            int: Error value 0 = SUCCESS; -1 = FAIL
+        """
+        node = self.node_factory.get_node(self.interface)
+        try:
+            return node.disseminate_file()
         except Exception:
             traceback.print_exc(file=sys.stdout)
 
     @wishful_module.bind_function(upis.mgmt.install_software_module)
-    def install_software_module(self, module_id, nodes=[]):
+    def install_software_module(self):
         """This function allows installing a previously disseminated software module on one or more nodes.
-
-        Args:
-            elf_object_file_id (int): ELF object file identifier
-            nodes (list[int]): List of node IDs that need to install the ELF file.
 
         Returns:
             int: Error value 0 = SUCCESS; -1 = FAIL
         """
         node = self.node_factory.get_node(self.interface)
         try:
-            return node.install_module(module_id, nodes)
-            # return node.forward_rpc("gitar_connector", "gitar_install_module", nodes)
+            return node.install_module()
         except Exception:
             traceback.print_exc(file=sys.stdout)
 
     @wishful_module.bind_function(upis.mgmt.activate_software_module)
-    def activate_software_module(self, module_id, nodes=[]):
+    def activate_software_module(self):
         """This function allows activating a previously installed software module on one or more nodes.
-
-        Args:
-            elf_object_file_id (int): ELF object file identifier
-            nodes (list[int]): List of node IDs that need to activate the ELF file.
 
         Returns:
             int: Error value 0 = SUCCESS; -1 = FAIL
         """
         node = self.node_factory.get_node(self.interface)
         try:
-            return node.activate_module(module_id, nodes)
-            # return node.forward_rpc("gitar_connector", "gitar_activate_module", nodes)
+            return node.activate_module()
         except Exception:
             traceback.print_exc(file=sys.stdout)

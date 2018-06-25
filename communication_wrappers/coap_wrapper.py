@@ -21,6 +21,16 @@ class CoAPWrapper(CommunicationWrapper):
         tunslip_ip_addr = self.control_prefix + control_tunslip_interface_id + prefix_length
         self.log = logging.getLogger('CoAPWrapper.' + str(self.node_id))
 
+        if "cooja" in serial_dev:
+            cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6-cooja -C -D' + serial_delay + ' -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
+            self.log.info(cmd)
+            self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6-cooja', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        else:
+            cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6 -C -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
+            self.log.info(cmd)
+            self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            # self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-v5', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+
         if int(subprocess.check_output("sudo ip6tables -C INPUT -d " + tunslip_ip_addr + " -j ACCEPT 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
             subprocess.check_output("sudo ip6tables -I INPUT 1 -d " + tunslip_ip_addr + " -j ACCEPT", shell=True, universal_newlines=True).strip()
 
@@ -38,16 +48,7 @@ class CoAPWrapper(CommunicationWrapper):
 
         if int(subprocess.check_output("sudo iptables -C OUTPUT -o tun+ -j DROP 2> /dev/null; echo $?", shell=True, universal_newlines=True).strip()) > 0:
             subprocess.check_output("sudo iptables -A OUTPUT -o tun+ -j DROP", shell=True, universal_newlines=True).strip()
-
-        if "cooja" in serial_dev:
-            cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6-cooja -C -D' + serial_delay + ' -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
-            self.log.info(cmd)
-            self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6-cooja', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        else:
-            cmd = 'sudo ../../agent_modules/contiki/communication_wrappers/bin/tunslip6 -C -B ' + serial_baudrate + ' -s ' + serial_dev + ' ' + tunslip_ip_addr
-            self.log.info(cmd)
-            self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-            # self.slip_process = subprocess.Popen(['sudo', '../../agent_modules/contiki/communication_wrappers/bin/tunslip6', '-v5', '-D' + serial_delay, '-B', serial_baudrate, '-C', '-s' + serial_dev, tunslip_ip_addr], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        
         self.__thread_stop = threading.Event()
         self.__rx_thread = threading.Thread(target=self.__serial_listen, args=(self.__thread_stop,))
         self.__rx_thread.daemon = True

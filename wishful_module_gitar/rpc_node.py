@@ -318,27 +318,42 @@ class RPCNode(SensorNode):
                 # line_ptr += event.datatype.size
         return resp_key_values
 
-    def allocate_memory(self, module_id, elf_file_size, rom_size, ram_size, nodes=[]):
+    def prepare_ota_update(self, nodes=[]):
         gitar_connector = self.get_connector("generic_connector")
-        f = gitar_connector.get_function("gitar_allocate_memory")
+        f = gitar_connector.get_function("gitar_mgmt_prepare_ota_update")
         request_message = bytearray()
+        dt_uint8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8'))
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
-        dt_uint32 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT32'))
-        arg_len = dt_uint16.size + dt_uint16.size + dt_uint16.size + dt_uint16.size + dt_uint16.size * len(nodes)
+        dt_int8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8'))
+        arg_len = dt_uint8.size + len(nodes) * dt_uint16.size
         request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), arg_len).to_bytes())
-        request_message.extend(dt_uint16.to_bytes(module_id))
-        request_message.extend(dt_uint16.to_bytes(elf_file_size))
-        request_message.extend(dt_uint16.to_bytes(rom_size))
-        request_message.extend(dt_uint16.to_bytes(ram_size))
+        request_message.extend(dt_uint8.to_bytes(len(nodes)))
         for node in nodes:
             request_message.extend(dt_uint16.to_bytes(node))
         line_ptr = 0
         response_message = self.com_wrapper.send(request_message)
         ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
         line_ptr += len(ret_hdr)
-        # print(response_message)
-        # print(ret_hdr)
-        # print(line_ptr)
+        if ret_hdr.ret_code == 0:
+            err = dt_int8.read_bytes(response_message[line_ptr:])
+            return err
+        return -1
+
+    def allocate_memory(self, elf_file_size, rom_size, ram_size):
+        gitar_connector = self.get_connector("generic_connector")
+        f = gitar_connector.get_function("gitar_mgmt_allocate_memory")
+        request_message = bytearray()
+        dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
+        dt_uint32 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT32'))
+        arg_len = dt_uint16.size + dt_uint16.size + dt_uint16.size
+        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), arg_len).to_bytes())
+        request_message.extend(dt_uint16.to_bytes(elf_file_size))
+        request_message.extend(dt_uint16.to_bytes(rom_size))
+        request_message.extend(dt_uint16.to_bytes(ram_size))
+        line_ptr = 0
+        response_message = self.com_wrapper.send(request_message)
+        ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
+        line_ptr += len(ret_hdr)
         if ret_hdr.ret_code == 0:
             rom_addr = dt_uint32.read_bytes(response_message[line_ptr:])
             line_ptr += dt_uint32.size
@@ -352,17 +367,16 @@ class RPCNode(SensorNode):
             return [rom_addr, ram_addr, ret_rom_size, ret_ram_size, ret_file_size]
         return -1
 
-    def store_file(self, module_id, block_index, block_size, block_offset, block_data):
+    def store_file(self, is_last, block_size, block_offset, block_data):
         gitar_connector = self.get_connector("generic_connector")
-        f = gitar_connector.get_function("gitar_store_file")
+        f = gitar_connector.get_function("gitar_mgmt_store_file")
         request_message = bytearray()
         dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
         dt_uint8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT8'))
         dt_int8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8'))
         arg_len = dt_uint8.size + dt_uint8.size + dt_uint16.size + dt_uint8.size * block_size
         request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), arg_len).to_bytes())
-        request_message.extend(dt_uint16.to_bytes(module_id))
-        request_message.extend(dt_uint8.to_bytes(block_index))
+        request_message.extend(dt_uint8.to_bytes(is_last))
         request_message.extend(dt_uint8.to_bytes(block_size))
         request_message.extend(dt_uint16.to_bytes(block_offset))
         for b in block_data:
@@ -376,16 +390,12 @@ class RPCNode(SensorNode):
             return err
         return -1
 
-    def disseminate_file(self, module_id, nodes=[]):
+    def disseminate_file(self):
         gitar_connector = self.get_connector("generic_connector")
-        f = gitar_connector.get_function("gitar_disseminate_file")
+        f = gitar_connector.get_function("gitar_mgmt_disseminate_file")
         request_message = bytearray()
-        dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
         dt_int8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8'))
-        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), dt_uint16.size * len(nodes)).to_bytes())
-        request_message.extend(dt_uint16.to_bytes(module_id))
-        for node in nodes:
-            request_message.extend(dt_uint16.to_bytes(node))
+        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), 0).to_bytes())
         line_ptr = 0
         response_message = self.com_wrapper.send(request_message)
         ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
@@ -395,16 +405,12 @@ class RPCNode(SensorNode):
             return err
         return -1
 
-    def install_module(self, module_id, nodes):
+    def install_module(self):
         gitar_connector = self.get_connector("generic_connector")
-        f = gitar_connector.get_function("gitar_install_module")
+        f = gitar_connector.get_function("gitar_mgmt_install_module")
         request_message = bytearray()
-        dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
         dt_int8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8'))
-        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), dt_uint16.size * len(nodes)).to_bytes())
-        request_message.extend(dt_uint16.to_bytes(module_id))
-        for node in nodes:
-            request_message.extend(dt_uint16.to_bytes(node))
+        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), 0).to_bytes())
         line_ptr = 0
         response_message = self.com_wrapper.send(request_message)
         ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
@@ -414,16 +420,12 @@ class RPCNode(SensorNode):
             return err
         return -1
 
-    def activate_module(self, module_id, nodes):
+    def activate_module(self):
         gitar_connector = self.get_connector("generic_connector")
-        f = gitar_connector.get_function("gitar_activate_module")
+        f = gitar_connector.get_function("gitar_mgmt_activate_module")
         request_message = bytearray()
-        dt_uint16 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('UINT16'))
         dt_int8 = ControlDataType(self.platform.endianness_fmt, self.platform.get_data_type_format_by_name('INT8'))
-        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), dt_uint16.size * len(nodes)).to_bytes())
-        request_message.extend(dt_uint16.to_bytes(module_id))
-        for node in nodes:
-            request_message.extend(dt_uint16.to_bytes(node))
+        request_message.extend(RPCFuncHdr(gitar_connector.uid, f.uid, f.num_of_args(), 0).to_bytes())
         line_ptr = 0
         response_message = self.com_wrapper.send(request_message)
         ret_hdr = read_RPCRetHdr(response_message[line_ptr:])
