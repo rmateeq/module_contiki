@@ -52,7 +52,7 @@ class GenericConnector(BaseConnectorModule):
     def prepare_ota_update(self, nodes=[]):
         node = self.node_factory.get_node(self.interface)
         try:
-            return node.allocate_memory(nodes)
+            return node.prepare_ota_update(nodes)
         except Exception:
             traceback.print_exc(file=sys.stdout)
 
