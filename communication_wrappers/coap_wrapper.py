@@ -92,7 +92,9 @@ class CoAPWrapper(CommunicationWrapper):
 
     def __serial_listen(self, stop_event):
         while not stop_event.is_set():
-            self.log.info("%s", self.slip_process.stdout.readline().strip())
+            o = self.slip_process.stdout.readline().strip()
+            if o:
+                self.log.info("%s", o)
 
     @asyncio.coroutine
     def coap_event_server(self, comm_wrapper, ip6_address, coap_port):
