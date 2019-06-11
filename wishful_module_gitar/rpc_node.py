@@ -148,6 +148,7 @@ class RPCNode(SensorNode):
                 if attr.datatype.has_variable_size():
                     line_ptr += attr.datatype.calcsize(*attr_key_value[attr.name])
                 else:
+                    line_ptr += attr.datatype.size
         return attr_key_value
 
     def create_attr_key_error_from_bytearray(self, attr_type, num_attr, b_array):
