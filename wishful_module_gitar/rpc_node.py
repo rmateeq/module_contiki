@@ -148,7 +148,6 @@ class RPCNode(SensorNode):
                 if attr.datatype.has_variable_size():
                     line_ptr += attr.datatype.calcsize(*attr_key_value[attr.name])
                 else:
-                    line_ptr += attr.datatype.size
         return attr_key_value
 
     def create_attr_key_error_from_bytearray(self, attr_type, num_attr, b_array):
@@ -179,6 +178,8 @@ class RPCNode(SensorNode):
     def set_parameters(self, parameter_list, param_key_values):
         generic_connector = self.get_connector("generic_connector")
         f = generic_connector.get_function('set_parameter')
+        
+        print("<<< RPC Node: set_parameters >>>", parameter_list, param_key_values)
         resp_key_values = {}
         for param in parameter_list:
             request_message = bytearray()
@@ -204,6 +205,8 @@ class RPCNode(SensorNode):
                 line_ptr += 1
             else:
                 resp_key_values[param.name] = ret_hdr.ret_code
+                
+        print("<<< RPC Node: set_parameters >>> !", resp_key_values)
         return resp_key_values
 
     def get_parameters2(self, parameter_list):
