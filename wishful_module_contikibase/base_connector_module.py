@@ -65,7 +65,7 @@ class BaseConnectorModule(wishful_module.AgentModule):
         try:
             raise ValueError()
         except Exception:
-            print("<<< >>>)
+            print("<<< >>>")
             
             import traceback
             traceback.print_exc()
