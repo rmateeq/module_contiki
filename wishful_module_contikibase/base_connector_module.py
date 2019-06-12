@@ -62,6 +62,15 @@ class BaseConnectorModule(wishful_module.AgentModule):
         return None
 
     def set_parameter(self, parameter_name, parameter_value):
+        try:
+            raise ValueError()
+        except Exception:
+            print("<<< >>>)
+            
+            import traceback
+            traceback.print_exc()
+            
+        
         param_key_values = {parameter_name: parameter_value}
         node = self.node_factory.get_node(self.interface)
         parameter_list = self.create_attribute_list_from_keys(node, param_key_values.keys(), "parameter")
